@@ -109,11 +109,3 @@ fun <- function(dataf) {
   as.character(print(rownames(dataf[i,])))
 }
 
-	#works dont fuck
-for(i in c(1:4)){
-fun(dataf = mtcars)
-		}
-
-
-
-}
