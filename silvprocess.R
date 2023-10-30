@@ -242,7 +242,7 @@ nms2kp<-list(
   Company_E= c("i_ThinYr",	"Trmt_Type",	"Trmt_Year"),
   Company_F= c("THIN_A_YEA","FERT_A_YEA","HERB_A_YEA"), #see notes in QC section on how i picked these
   Company_G= c("Act_Date", "FERT_YEAR", "THIN_YEAR"),# Fert is never before est year so we can just use FERT_METH. Thin is pretty specific so we can ignore the year bc nothing is precommercial (all are "Commercial" or some kind of row/selection thinning)
-  Company_H= c("ActualEndDate","Activitysubcategoryname2"),
+  Company_H= c("Activitysubcategoryname","ActualEndDate.y"),
   Company_I= c("HARV_TYPE","HARV_YEAR","OP_YEAR","TREATMENT","ESTYEAR"),# I did this one already at the read in step bc it is just more complicated so its not reducing the dimensions here; also note you end up with a lot of stands, like 350 that have no mgt info (ie all na in     subset(is.na(TRMNT_TYPE)&is.na(APP_MTHD)&is.na(HARV_TYPE)&is.na(TREATMENT)))
   Company_J= c("COMPLETION_DATE", "ActType"),
   Company_TIR= c("fertilization",	"mid_rot_chem",	"thinning") #vicent already made this one 
@@ -256,15 +256,6 @@ nms2kp<-lapply(names(nms2kpj),function(x){
 #give it back its names
 names(nms2kp)<-names(nms2kpj)
 
-#d
-#make the list names a separate thing for dbfl
-#dbfllsnms<-names(lis)
-#lis<-lapply(names(lis),function(i){
-#  lis[[i]]<-select(lis[[i]],nms2kp[[i]])
-#})
-#names(lis)<-dbfllsnms
-#md
-
 
 #this stuff gets rid of extraneous columns as far as the fert herb thin experiment goes
 dbfllsnms<-names(dbfl)
@@ -272,8 +263,6 @@ dbfl<-lapply(names(dbfl),function(i){
   dbfl[[i]]<-select(dbfl[[i]],nms2kp[[i]])
 })
 names(dbfl)<-dbfllsnms
-
-
 
 
 #write  to look at them
@@ -318,7 +307,7 @@ variable_match<-read.csv("./Workspace_Sean/R/variable_match.csv",header = T)
 #these are the columns of company level names and  and what FPC variable names they correspond to by company
 level_match<-read.csv("./Workspace_Sean/R/level_match.csv",header = T,strip.white = T)
 
-#wael("./Workspace_Sean/R/level_match.csv")
+#wael("./Workspace_Sean/R/variable_match.csv")
 
 
 
@@ -365,24 +354,28 @@ dbfl[["Company_E"]]<-dbfl[["Company_E"]]%>% #  #Im assuming HWC stands for Herba
   mutate(.,Trmt_Type=cbmgtnms(these=Trmt_Type,df=level_match,dfcompany="Company_E"))%>% #rename the stuff in the "these" column for "company" whatevr in variable_match
   select(-variable)%>%
   lookup_rename(.,column_lookup = variable_match[variable_match$company=="Company_E",])%>%
-  subset(!(op=="thi"&opye==0)) #these are true non thinned stands, thats how they record thinning vs none as a real year vs a 0 for the year
+  subset(!(op=="thi"&opye==0)) #these are true non thinned stands, thats how they record thinning vs none as a real year vs a 0 for the year. Note on the other hand they have 0's for fer and che that are real operations so you cant do a blanket remove 0's  
 
 
-dbfl[["Company_F"]]<-  dbfl[["Company_F"]]%>% 
+dbfl[["Company_F"]]<-  dbfl[["Company_F"]]%>%
   melt.data.frame(.,id.vars=c("YEAR_ESTAB","WTS_STAND"),variable_name="op")%>%
-     lookup_rename(.,column_lookup = variable_match[variable_match$company=="Company_F",])%>%
-  mutate(.,opye=zerona(opye))%>%
-  mutate(.,op=cbmgtnms(these=op,df=level_match,dfcompany="Company_F")) #rename the stuff in the "these" column for "company" whatevr in variable_match
+  lookup_rename(.,column_lookup = variable_match[variable_match$company=="Company_F",])%>%
+  mutate(.,opye=zerona(opye))%>% 
+  mutate(.,op=cbmgtnms(these=op,df=level_match,dfcompany="Company_F"))%>% #rename the stuff in the "these" column for "company" whatevr in variable_match
+  subset(!(is.na(opye))) #0s (which become NAs) for dates mean it didnt happen for F
 
 
 dbfl[["Company_G"]]<-dbfl[["Company_G"]]%>% 
   melt.data.frame(id.vars = c("STAND_ID","YEAR_EST_2"),measure.vars=c("Act_Date", "FERT_YEAR", "THIN_YEAR"),
                   variable_name = "op")%>%
   mutate(.,op=cbmgtnms(these=op,df=level_match,dfcompany="Company_G"))%>% #rename the stuff in the "these" column for "company" whatevr in variable_match
-  lookup_rename(.,column_lookup = variable_match[variable_match$company=="Company_G",])
+  lookup_rename(.,column_lookup = variable_match[variable_match$company=="Company_G",])%>%
+subset(!(is.na(opye)))  #if there's no year it didnt happen for g
+
+
 
 dbfl[["Company_H"]]<-dbfl[["Company_H"]]%>% 
-  mutate(.,Activitysubcategoryname2=cbmgtnms(these=Activitysubcategoryname2,df=level_match,dfcompany="Company_H"))%>% #rename the stuff in the "these" column for "company" whatevr in variable_match
+  mutate(.,Activitysubcategoryname=cbmgtnms(these=Activitysubcategoryname,df=level_match,dfcompany="Company_H"))%>% #rename the stuff in the "these" column for "company" whatevr in variable_match
   lookup_rename(.,column_lookup = variable_match[variable_match$company=="Company_H",])%>%
   mutate(.,yrest=as.integer(year(as.Date(yrest,tz="America/New_York"))))%>% #theyre the only ones recording in ymd hms format
   mutate(.,opye=as.integer(year(as.Date(opye,tz="America/New_York")))) #theyre the only ones recording in ymd hms format
@@ -444,13 +437,13 @@ if("you want to write over the final silv.csv"==T){
     mutate(.,compID=paste0("CO",gsub(".*_","",CO),stand))%>%
     mutate(compID=gsub("^COTIR","TIR",compID))%>% #see email form vicent 10/19/23 9:12am to sean
     subset(.,!is.na(stand))%>%
-    subset(!(CO=="Company_G"&is.na(opye)))%>% #should move this step to the companies reformatting steps at some point
-#        select(compID,op)%>%   #pick up here fnas figure out why some have o or na for year of operation opye
+        select(compID,op)%>%   #pick up here fnas figure out why some have o or na for year of operation opye
     distinct()%>%
     mutate(i=1)%>% #placeholder for casting
          cast(.,compID~op,value="i")%>%
-    write.csv("./silv.csv",row.names = F)}
-
+    write.csv("./silv.csv",row.names = F)
+  }
+  
 
 #QC notes ------
 #Is it fine to get rid of stands that are NA? THere are just a handful
@@ -516,6 +509,8 @@ if("you want to write over the final silv.csv"==T){
 #. these are not meant to edit the data that is used for analysis, just to aid in column selection
 
 #QC on Company F
+if("you want to do QC checks on stuff"==T){
+  print(NA)
 Company_F<-read.csv(paste0(getwd(),"/Workspace_Sean/viewingdelete/Company_F.csv"),header = T) #ctrl+f aAWbhgbt2525
 Company_F<-
   Company_F[,c("THIN_A_BEF","TOT_NUM_TH","THIN_A_AGE","THIN_A_YEA","THIN_A_TYP","THIN_A_AFT","FERT_A_IND","FERT_A_AGE","FERT_A_YEA","FERT_A_TRE","FERT_A_CHE","FERT_A_C_1","FERT_A_C_2","FERT_A_C_3","FERT_A_C_4","FERT_A_C_5","FERT_A_C_6","FERT_A_C_7","FERT_A_C_8","FERT_A_C_9","FERT_A__10","FERT_A__11","HERB_A_IND","HERB_A_AGE","HERB_A_YEA","HERB_A_TRE","HERB_A_TYP","HERB_A_MET","HERB_A_CHE","HERB_A_C_1","HERB_A_C_2","HERB_A_C_3","HERB_A_C_4","HERB_A_C_5")]
@@ -543,6 +538,9 @@ all.equal(notyp,c(1:nrow(Company_F))[0==(allnoth)])
 
 #for Company F, fert columns:
 #yes it's true, you can forget the other columns besides FERT_A_IND bc there's no case where there is info in another column that is not summed up by a "Y" in the FERT_A_IND
+
+#QC on company H:
+#note they sometimes fertilize twice in three years, or spray herbicide five times in six years ...? IDK man, thats that the raw data says so I'm just going with it. 
 
 #QC on Company I
 #By far the most extensive and kinda the most complicated data set bc its all in GIS AND its all relates so I had to rejoin everything
@@ -598,8 +596,8 @@ read.csv("C:/Users/sabloszi/Dropbox (FPC)/Site index stands_anon/Workspace_Sean/
   with(.,table(PCS,hm))%>%
   colSums()/8753 # 8753 is just the number of unique stands that got fertilizer at any point.
 #Long story short like 396 or 4% of their stands get fertilized in four different years. 2 stands got fertilized 6 times.
+}
 
 
 #bash----
 #setwd("Q:/My Drive/Studies/FPC/Scripts")
-
