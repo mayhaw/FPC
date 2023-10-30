@@ -1,6 +1,5 @@
 #dbf read in and merging with xlsx and accdb etc----
-#setwd("C:/Users/seanb/Dropbox (FPC)/Site index stands_anon")#personal personal computer
-#setwd("C:/Users/sabloszi/Dropbox (FPC)/Site index stands_anon")#work computer
+setwd(paste0(gsub("\\\\Documents","",Sys.getenv("HOME")),("\\Dropbox (FPC)\\Site index stands_anon")))
 midrot=10 #set the cutoff for Release and Thin to be included as a value in the global env for use later
 #get all the dbfs
 dbfc<-list.files(recursive = T)%>%
@@ -369,11 +368,12 @@ dbfl[["Company_E"]]<-dbfl[["Company_E"]]%>% #  #Im assuming HWC stands for Herba
   subset(!(op=="thi"&opye==0)) #these are true non thinned stands, thats how they record thinning vs none as a real year vs a 0 for the year
 
 
-dbfl[["Company_F"]]<-dbfl[["Company_F"]]%>% 
+dbfl[["Company_F"]]<-  dbfl[["Company_F"]]%>% 
   melt.data.frame(.,id.vars=c("YEAR_ESTAB","WTS_STAND"),variable_name="op")%>%
-  lookup_rename(.,column_lookup = variable_match[variable_match$company=="Company_F",])%>%
+     lookup_rename(.,column_lookup = variable_match[variable_match$company=="Company_F",])%>%
   mutate(.,opye=zerona(opye))%>%
   mutate(.,op=cbmgtnms(these=op,df=level_match,dfcompany="Company_F")) #rename the stuff in the "these" column for "company" whatevr in variable_match
+
 
 dbfl[["Company_G"]]<-dbfl[["Company_G"]]%>% 
   melt.data.frame(id.vars = c("STAND_ID","YEAR_EST_2"),measure.vars=c("Act_Date", "FERT_YEAR", "THIN_YEAR"),
@@ -434,9 +434,9 @@ names(dbflf)<-dbfcf%>%gsub("\\.csv","",.)
 #now i can die in piece and go to ... because i have made the uber list
 valhal<-rbindlist(dbflf,idcol = "CO",use.names = T)
 
-valhal<-valhal%>%
+valhal<-  valhal%>%
   mutate(.,opye=as.integer(ifelse(nchar(opye)<=4,opye,year(as.Date.character(opye)))))%>% #turn into year not date for those that report it as date (i think this is just company H)
-  mutate(.,yrest=as.integer(ifelse(nchar(yrest)<=4,yrest,as.character(year(as.Date.character(yrest))))))%>% ##turn into year not date for those that report it as date (i think this is just company H)
+     mutate(.,yrest=as.integer(ifelse(nchar(yrest)<=4,yrest,as.character(year(as.Date.character(yrest))))))%>% ##turn into year not date for those that report it as date (i think this is just company H)
   subset(.,op%in%c("fer","thi")|(op=="che"&((opye-yrest)>=10))) #note this automatically excludes herbicides where we dont know either the yrest or the opye bc R can't subtract from NA. You can reverse this with |is.na(yrest)|is.na(opye)). There's only 6k out of 467k che rows that this na case applies to
 
 if("you want to write over the final silv.csv"==T){
@@ -445,10 +445,10 @@ if("you want to write over the final silv.csv"==T){
     mutate(compID=gsub("^COTIR","TIR",compID))%>% #see email form vicent 10/19/23 9:12am to sean
     subset(.,!is.na(stand))%>%
     subset(!(CO=="Company_G"&is.na(opye)))%>% #should move this step to the companies reformatting steps at some point
-    select(compID,op)%>%  
+#        select(compID,op)%>%   #pick up here fnas figure out why some have o or na for year of operation opye
     distinct()%>%
     mutate(i=1)%>% #placeholder for casting
-    cast(.,compID~op,value="i")%>%
+         cast(.,compID~op,value="i")%>%
     write.csv("./silv.csv",row.names = F)}
 
 
@@ -601,4 +601,5 @@ read.csv("C:/Users/sabloszi/Dropbox (FPC)/Site index stands_anon/Workspace_Sean/
 
 
 #bash----
-setwd("C:/Users/sabloszi/Dropbox (FPC)/Site index stands_anon/Workspace_Sean/R")
+#setwd("Q:/My Drive/Studies/FPC/Scripts")
+
