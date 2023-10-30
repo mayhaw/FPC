@@ -456,23 +456,17 @@ windows(100, 100, pointsize = 12) #opens a separate window with the size you wan
 par(mar=c(4,6,4,3))
 graphics::contour(zmodel, p_soil_ppm ~ zn_soil, image = TRUE,labcex=2.8,cex.lab=2.8,cex.axis=2.8, xlabs=c("Soil P (ppm)","Soil Zn (mg kg^-1)"))   
 #rwdb gold------
-#20221017.mdb, seanb
-
-
-conn<-odbcConnect("rwdb2022")   #new error 3/16/22- went to this b/c the driver path was "unknown" somehow
-#
-
+#just define the connection to the db from R; doesn't create an object in the global env that has actual rwdb data in it
+dbpath=paste0(gsub("\\\\Documents","",Sys.getenv("HOME")),("\\Dropbox (FPC)\\FPC Team Folder\\Static RWDB\\RWDB static 20210423.mdb"))
+conn<-odbcDriverConnect(paste0("Driver={Microsoft Access Driver (*.mdb, *.accdb)};DBQ=",dbpath))
 #not sure what this one is for
 #conn<-odbcDriverConnect(  "Driver={Microsoft Access Driver (*.mdb, *.accdb)};DBQ=C:/Users/seanb/Dropbox (FPC)/FPC Team Folder/Static RWDB/RWDB static 20221017.mdb")#20221017
-#20210423.mdb, seanb
-#conn<-odbcDriverConnect("Driver={Microsoft Access Driver (*.mdb, *.accdb)};DBQ=C:/Users/seanb/Dropbox (FPC)/FPC Team Folder/Static RWDB/RWDB static 20210423.mdb
 #20221017.mdb, seanb
 #conn<-odbcDriverConnect("Driver={Microsoft Access Driver (*.mdb, *.accdb)};DBQ=C:/Users/seanb/Dropbox (FPC)/FPC Team Folder/Static RWDB/RWDB static 20221017.mdb")
 #20221017.mdb, sabloszi
 #conn<-odbcDriverConnect("Driver={Microsoft Access Driver (*.mdb, *.accdb)};DBQ=C:/Users/sabloszi/Dropbox (FPC)/FPC Team Folder/Static RWDB/RWDB static 20221017.mdb")
-#20210423.mdb, sabloszi
-#conn<-odbcDriverConnect("Driver={Microsoft Access Driver (*.mdb, *.accdb)};DBQ=C:/Users/sabloszi/Dropbox (FPC)/FPC Team Folder/Static RWDB/RWDB static 20210423.mdb")
-
+#20221017.mdb, seanb?
+#conn<-odbcConnect("rwdb2022")   #new error 3/16/22- went to this b/c the driver path was "unknown" somehow
 #20210423.mdb, sabloszi
 #conn<-odbcDriverConnect("Driver={Microsoft Access Driver (*.mdb, *.accdb)};DBQ=C:/Users/sabloszi/Dropbox (FPC)/FPC Team Folder/Static RWDB/RWDB static 20210423.mdb")#
 #11156 in 2021, 11336 in 2022
@@ -4611,6 +4605,7 @@ YEAR_EST_2
 wael("./Workspace_Sean/GIS/Files/Company_G")
 
 #randos-----------
+#delete eventually, this was to do some qc on the silv site index stuff
 dbfcf<-list.files(path ="./Workspace_Sean/viewingdelete/")
 #make a list (takes like 5 sec on home pc, 1 mississippi sec on workpc)
 dbfcf<-dbfcf[-12]
