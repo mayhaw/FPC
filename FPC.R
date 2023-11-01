@@ -457,7 +457,7 @@ par(mar=c(4,6,4,3))
 graphics::contour(zmodel, p_soil_ppm ~ zn_soil, image = TRUE,labcex=2.8,cex.lab=2.8,cex.axis=2.8, xlabs=c("Soil P (ppm)","Soil Zn (mg kg^-1)"))   
 #rwdb gold------
 #just define the connection to the db from R; doesn't create an object in the global env that has actual rwdb data in it
-dbpath=paste0(gsub("\\\\Documents","",Sys.getenv("HOME")),("\\Dropbox (FPC)\\FPC Team Folder\\Static RWDB\\RWDB static 20210423.mdb"))
+dbpath=normalizePath(paste0(gsub("/Documents","",Sys.getenv("HOME")),("\\Dropbox (FPC)\\FPC Team Folder\\Static RWDB\\RWDB static 20210423.mdb")))
 conn<-odbcDriverConnect(paste0("Driver={Microsoft Access Driver (*.mdb, *.accdb)};DBQ=",dbpath))
 #not sure what this one is for
 #conn<-odbcDriverConnect(  "Driver={Microsoft Access Driver (*.mdb, *.accdb)};DBQ=C:/Users/seanb/Dropbox (FPC)/FPC Team Folder/Static RWDB/RWDB static 20221017.mdb")#20221017
@@ -479,6 +479,7 @@ dam<-sqlFetch(conn, "dbo_DAMAGE")
 splloc<-sqlFetch(conn,"dbo_SAMPLING_LOCATION")
 tree<-sqlFetch(conn,"dbo_TREE_GROWTH")
 stdy<-sqlFetch(conn,"dbo_STUDY_INFO")
+trts<-sqlFetch(conn,"dbo_TREATMENTS")
 sqlFetch(conn,"dbo_ACTIVITY_WORKPLAN")%>%wex()
 depths<-sqlFetch(conn,"dbo_DEPTH_CODES")
 sqlFetch(conn,"dbo_COMPANY_OPERATIONS")%>%
@@ -489,23 +490,13 @@ wex(sqlFetch(conn,"dbo_DOMINANT_HEIGHT_1"))
 wex(sqlFetch(conn,"dbo_APPLIED_TREATMENTS"))
 (sqlFetch(conn,"dbo_SAMPLING_LOCATION"))
 
-names(splloc)
-#d
-sqlFetch(conn,"dbo_MACRO_TISSUE")%>%pull("SAMPLE_#")%>%histogram()
-#md
-
-
-
+#get all the names of every column in every table 
 framnams1<-sapply(tblnams[1:31],function(x){names(sqlFetch(conn,x))})
-framnams2<-sapply(tblnams[32:61],function(x){names(sqlFetch(conn,x))})
-
-
-findnames<-function(x){grepl("(?i)DENS", x)}
-lapply(franmams,FUN = function(x){sum(findnames(x))})%>%str()
-_STUDY_INFO
-_MICRO_TISSUE
-_MACRO_TISSUE
-_COMPANY_OPERATIONS 
+framnams2<-sapply(tblnams[32:61],function(x){names(sqlFetch(conn,x))}) #its in two parts bc it takes for ever on my computer at least
+#put whatever you want to search for in the grepl() function
+findnames<-function(x){grepl("(?i)REP", x)}
+#this shows you which tables have a column with that search in it
+lapply(framnams2,FUN = function(x){sum(findnames(x))})
 
 #nothing for spa
 #TPA
@@ -4624,5 +4615,84 @@ lapply(.,function(x)
 
 rbindlist(subs,idcol = "co")%>%
   wex()
-#github-----
+#mergig plto numbers to main.RW29_NCVarRate_MasterPlotPlan----
+library(rgdal)# for st_read and ogrListLayers
+library(readxl)
+setwd("Q:/Shared drives/FER - FPC Team/RegionWide Trials/RW29 Variable Rate x Herb")
+#see what's in the main newish (as of 10/2023) gpkg
+ogrListLayers(paste0(getwd(),"/NC/GIS/RW29_NCVarRate_allLayers.gpkg"))
+#Get the main measurement plot layer
+meas<-st_read(paste0(getwd(),"/NC/GIS/RW29_NCVarRate_allLayers.gpkg"),
+        layer = "RW29_NCVarRate_IntMeasPlots"        )%>%
+  as_tibble()
+trt<-st_read(paste0(getwd(),"/NC/GIS/RW29_NCVarRate_allLayers.gpkg"),
+              layer = "RW29_NCVarRate_MasterPlotPlan"        )%>%
+  unique()%>%
+  as_tibble()
+
+meas%>%
+  select(SUB_ID)
+#these are the columns of old factor level names and what new level names they correspond to by factor
+level_match<-read_excel(paste0(getwd(),"/RW29_VarRate_Trtcodes_5-24-2023.xlsx"),
+                sheet="current treatment levels",
+                trim_ws = T )
+pln<-read_excel(paste0(getwd(),"/RW29_VarRate_Trtcodes_5-24-2023.xlsx"),
+                sheet="planned treatment codes",
+                trim_ws = T )%>%head(20)
+#this simple function was a way to rename the levels of variable really explicityl 
+cbmgtnms<- function(these,df){#combine management with similar ones "1/0 is it a date?" column
+  #df<-df[df$company==dfcompany,]
+  reduce2(df$old, df$new,  .init = these, str_replace)
+}
+
+#allcodes<-
+trt%>%
+  select(c(ResrcID,GID,Herb,fert_FINAL,fert_rx))%>%
+  as.data.table()%>%
+  melt.data.table(id.vars=c("ResrcID","GID"))%>%
+mutate(.,value=cbmgtnms(these=value,df=level_match))%>% #rename the stuff in the "these" column for "company" whatevr in variable_match
+  unique()%>% #there are two kinds of duplicates of GIDs- by grid squares that are split by roads etc and b/c some grid squares are stacked one on top of another
+head()#pick up here figuring out what to do about herbs that go across squares as y and n
+    cast(.,ResrcID+GID~variable)%>%
+  merge(.,pln,by.x=c("Herb" ,"fert_FINAL",   "fert_rx"),
+        by.y=c("Herbicide (Y/N)","Application Rate", "Application method"),all=T)%>%
+  select(c(ResrcID, GID,'Treatment code',Herb, fert_FINAL,   fert_rx       ))%>%
+  subset(!is.na(`Treatment code`))%>%# these are neighbors so dont get their own PLOT number in the end
+  arrange(ResrcID,GID)%>% #decided to preserve the alplanumeric order the ResrcID and then GIDs were already in...
+  group_by(ResrcID,`Treatment code`)%>% #... and then to have the numbers count up within a RescrID X Treatment code combo
+  mutate(REP=10:(n()+9))%>%#make rep numbers that start over in each STDY
+  ungroup()%>% #grouping again by different thing next so ungrou
+  group_by(ResrcID) %>% mutate(STDY = 291200+cur_group_id())%>% #tim said use 12 for manulife
+  mutate(.,PLOT=(100*REP)+as.integer(`Treatment code`))%>% #make plot numbers
+  arrange(ResrcID,`Treatment code`,PLOT)
+
+    #Q:\Shared drives\FER - FPC Team
+    
+pathz="RW29_VarRate_Trtcodes_5-24-2023.xlsx"
+pathz%>%
+  excel_sheets()%>%
+set_names()%>%
+  purrr::map(read_xlsx,path=pathz)%>%
+  c(.,list(allcodes=allcodes))%>%#be careful bc this allcodes=allcodes is set to overwrite whatever is in the sheet named allcodes
+  write_xlsx(
+    .,
+    path = "RW29_VarRate_Trtcodes_5-24-2023.xlsx",
+    col_names = TRUE,
+    format_headers = TRUE,
+    use_zip64 = FALSE
+  )
+
+  
+#QC on RW29_NCVarRate_allLayers.gpkg-----  
+#in RW29_NCVarRate_MasterPlotPlan there are lots of duplicates, like you click on a polygon and there are four identical one on top of the other with all the same columns ; the only column that differentieates them is fid. fid doesnt show up with st read as is so you can use unique to get rid of the dups
+#Note there are at least some trees in 139's control N ground plot that are in a neighbor plot that we'll have to manually asign the PLOT to if I use the fert_rx to assign levels since those arent' in the "planned treatment codes" table
+#Ok so if we go with the allcodes join, can we just assign the trees plot numbers based on the allcodes PLOT theyre in?
+#113 (124): yes this ones easy, only a few trees span two SUBIDs and then theyre both exact same mgt just two reps and none are in neighbors
+#55       : yes this ones easy, no         trees span two SUBIDs and                                               and none are in neighbors
+#139      : the most effed bc a bunch of trees are in a neighbor that doesnt get a PLOT,; furthermore most of the trees are in a neighbor so .... cant do plot center or majority area or anything. also there are trees that are spanning an LAIbased and a random verson of the 100lb/ac herb trt
+#127      :  there are trees that are spanning an LAIbased and a random verson of the 300lb/ac herb trt. there's another two sets of ground plots where they span two nextdoor instances of the same herbXmethodXfert treatment
+#ok so see what these problems mean in terms of what the groundplot outlines got assigned for their SUBID; if they make sense go ahead and join the plot to the groundplot and then the groundplot to the trees in them and fuck off
+
+  #github-----
 setwd("Q:/My Drive/Studies/FPC/Scripts")
+#
