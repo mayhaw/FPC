@@ -1,10 +1,10 @@
+source("Q:/My Drive/Library/datlibmgr.R")
 #pick up----
 #just got va and v, mkae sure they make sense then go ahead and make figures for one or both and do anova
 #setwd
 #setwd("C:/Users/seanb/")
 #setwd("C:/Users/sabloszi")
 
-source("Q:/My Drive/Library/datlibmgr.R")
 
 
 #readin----
@@ -457,8 +457,10 @@ par(mar=c(4,6,4,3))
 graphics::contour(zmodel, p_soil_ppm ~ zn_soil, image = TRUE,labcex=2.8,cex.lab=2.8,cex.axis=2.8, xlabs=c("Soil P (ppm)","Soil Zn (mg kg^-1)"))   
 #rwdb gold------
 #just define the connection to the db from R; doesn't create an object in the global env that has actual rwdb data in it
-dbpath=normalizePath(paste0(gsub("/Documents","",Sys.getenv("HOME")),("\\Dropbox (FPC)\\FPC Team Folder\\Static RWDB\\RWDB static 20210423.mdb")))
+dbpath=normalizePath(paste0(gsub("\\\\Documents","",Sys.getenv("HOME")),("\\Dropbox (FPC)\\FPC Team Folder\\Static RWDB\\RWDB static 20221017.mdb")))
 conn<-odbcDriverConnect(paste0("Driver={Microsoft Access Driver (*.mdb, *.accdb)};DBQ=",dbpath))
+
+
 #not sure what this one is for
 #conn<-odbcDriverConnect(  "Driver={Microsoft Access Driver (*.mdb, *.accdb)};DBQ=C:/Users/seanb/Dropbox (FPC)/FPC Team Folder/Static RWDB/RWDB static 20221017.mdb")#20221017
 #20221017.mdb, seanb
@@ -2450,52 +2452,6 @@ outer(c(1000,2000,3000,4000),c(0,  361,  360,  481,  480,  721,  720,  108),FUN 
 
 
 
-# move to somewhere else AND THEN delete (link from pickupcalks vertex section somwhoe)---- 
-
-#first lets see how raw data looks to anser:
-#1. How does actual (tape measure) height of object affect the vertex measured height?
-#2. How does distance from the object affect the vertex measured height?
-#3. How does parallax affect the vertex measured height? (like for bent trees etc)
-#4. how does incorrect (too close, too far) calibration affect the vertex measured height?
-#5. To some degree, how does variability in all kinds of things i didnt account for (like A] difficulty of pinpointing the thing i'm sighting too b/c of tree foliage in the way; B] minor elevation differences; and C] no idea) affect the vertex measured height?
-
-#Notes: 29.52, 32.8, and 34.8 ft represent the farthest forward from, closest to, and farthest behind the actual 32.8 ft on the tape measure on the ground (ie the vertex won't let you calibrate if you are closer than an actual 29.52 ft from the transponder and you have 32.8 set as the true distance; which is actually a nice feature)
-#Also some other calibration data is in G:\My Drive\PICK UP-CALCULATIONS.xlsx
-read.csv("C:/Users/sabloszi/Dropbox (FPC)/Bloszies (1)/NCSU/CNR/FER/FPC/Lab/Lab Documents/SOPs_Methods/vertex_iv_me_calib-data.csv",header=T)%>%
-  subset(dt=20230328)%>% #for this modeling example stuff just use the data i collected this date in the biltmore jordan courtyard. more info in the pickup calculations.xlsx above
-  mutate(.,ftcalib=as.factor(ftcalib))%>%
-  mutate(.,floor=as.factor(floor))%>%
-  #head()%>%
-  ggplot(data=.)+
-  geom_hline(    yintercept=c(65.6,50.9,36))+
-  geom_line(aes(x=fthoriz,y=ftvert,color=floor,linetype=ftcalib))
-#so what would make the trees taller last year?
-#1. If the trees were actually taller and we calibrated correctly (the colors of lines represents this, more or less- it is an actual difference in heights to floors)
-#2. If we were calibrating acurately and standing too far away (but this seems unlikely, I would guess if anything we were probably closer than the heigh away from the trunk)
-#3. Most likely, I had the tape measure too slack when I measured out 32.8 feet. This easily gives you between 1-5 feet of extra depending on how far away you are and how tall the tree was.
-#4. If the transponder height was wrong last year in the vertex itself. In reality, it's probably 1-2 inches below dbh since it's in the way of the dtape if it's at exactly 4.5. FWIW, the old vertex (the one we used last year and maybe the first measurement this year) was at 3.5 when I checked so maybe the first day's measurements were 1 foot off because of this (maybe for which day it was since I didn't keep track of which vertex was used when)
-
-moddat<-read.csv("G:/My Drive/Studies/FPC/SharedFolderSean/Bloszies (1)/NCSU/CNR/FER/FPC/Lab/Lab Documents/SOPs_Methods/vertex_iv_me_calib-data.csv",header=T)%>%
-  subset(dt=20230328)%>%
-  mutate(.,tree=rep(1:10,9))%>%
-  subset(.,ftcalib!=34.8)%>%
-  mutate(.,ftcalib=factor(ftcalib,levels=c("29.52","32.8"),labels=c("c","f")))%>%
-  mutate(.,tree=(floor*10+tree))%>%
-  select(-c(floor,fthoriz,item,dt))%>%
-  melt(.,id.vars=c("ftcalib","tree"))%>%
-  select(-variable)%>%
-  cast(.,tree~ftcalib)
-
-fit=  lm(data=moddat,f~c)#model far as a function of close since we want to find out the estimated farther (ie acurate 32.8ft calibration height i/o less than 32.8ft calib height) based on last years close data
-
-ggplot(data=moddat)+
-  geom_point(aes(x=c,y=f))+ #looks linear by the points
-  geom_abline(intercept = coef(fit)[1], slope = coef(fit)[2])#so yea looks nice and linear to the eye, worth modeling as a line
-#ylim(0,10)+xlim(0,10) yes that positive intercept really does mean at 0,0 the close trees are shorter. But the slope <1 makes up for that
-
-summary(fit)#99%r2 without even knowing anyuthing about how far from the tree we were or the actual calib distance; I think as long as we can estimate where they started growing from last year correctly we'll be good
-
-
 #ocr------
 #
 #library(pdftools) #just need this if converting from pdf to png or other image formats;
@@ -2517,9 +2473,59 @@ newest(files(
 
 
 
-#merge arc attr tables with 2022 cruising data varrateNC-----
+#2023 cruising data varrateNC calibration---- 
+#(link from pickupcalks vertex section somwhoe)
 
-setwd("C:/Users/sabloszi/Dropbox (FPC)/FPC Team Folder/RegionWide Trials/Special Studies/Variable Rate Fertilizer Application/2022 work near Louisburg NC/Data")
+#first lets see how raw data looks to anser:
+#1. How does actual (tape measure) height of object affect the vertex measured height?
+#2. How does distance from the object affect the vertex measured height?
+#3. How does parallax affect the vertex measured height? (like for bent trees etc)
+#4. how does incorrect (too close, too far) calibration affect the vertex measured height?
+#5. To some degree, how does variability in all kinds of things i didnt account for (like A] difficulty of pinpointing the thing i'm sighting too b/c of tree foliage in the way; B] minor elevation differences; and C] no idea) affect the vertex measured height?
+
+#Notes: 29.52, 32.8, and 34.8 ft represent the farthest forward from, closest to, and farthest behind the actual 32.8 ft on the tape measure on the ground (ie the vertex won't let you calibrate if you are closer than an actual 29.52 ft from the transponder and you have 32.8 set as the true distance; which is actually a nice feature)
+#Also some other calibration data is in G:\My Drive\PICK UP-CALCULATIONS.xlsx
+
+read.csv("C:/Users/sabloszi/Dropbox (FPC)/Bloszies (1)/NCSU/CNR/FER/FPC/Lab/Lab Documents/SOPs_Methods/vertex_iv_me_calib-data.csv",header=T)%>%
+  subset(dt=20230328)%>% #for this modeling example stuff just use the data i collected this date in the biltmore jordan courtyard. more info in the pickup calculations.xlsx above
+  mutate(.,ftcalib=as.factor(ftcalib))%>%
+  mutate(.,floor=as.factor(floor))%>%
+  #head()%>%
+  ggplot(data=.)+
+  geom_hline(    yintercept=c(65.6,50.9,36))+
+  geom_line(aes(x=fthoriz,y=ftvert,color=floor,linetype=ftcalib))
+#so what would make the trees taller last year?
+#1. If the trees were actually taller and we calibrated correctly (the colors of lines represents this, more or less- it is an actual difference in heights to floors)
+#2. If we were calibrating acurately and standing too far away (but this seems unlikely, I would guess if anything we were probably closer than the heigh away from the trunk)
+#3. Most likely, I had the tape measure too slack when I measured out 32.8 feet. This easily gives you between 1-5 feet of extra depending on how far away you are and how tall the tree was.
+#4. If the transponder height was wrong last year in the vertex itself. In reality, it's probably 1-2 inches below dbh since it's in the way of the dtape if it's at exactly 4.5. FWIW, the old vertex (the one we used last year and maybe the first measurement this year) was at 3.5 when I checked so maybe the first day's measurements were 1 foot off because of this (maybe for which day it was since I didn't keep track of which vertex was used when)
+
+moddat<-read.csv("Q:/My Drive/Studies/FPC/SharedFolderSean/Bloszies (1)/NCSU/CNR/FER/FPC/Lab/Lab Documents/SOPs_Methods/vertex_iv_me_calib-data.csv",header=T)%>%
+  subset(dt=20230328)%>%
+  mutate(.,tree=rep(1:10,9))%>%
+  subset(.,ftcalib!=34.8)%>%
+  mutate(.,ftcalib=factor(ftcalib,levels=c("29.52","32.8"),labels=c("c","f")))%>%
+  mutate(.,tree=(floor*10+tree))%>%
+  select(-c(floor,fthoriz,item,dt))%>%
+  melt(.,id.vars=c("ftcalib","tree"))%>%
+  select(-variable)%>%
+  cast(.,tree~ftcalib)
+
+fit=  lm(data=moddat,f~c)#model far as a function of close since we want to find out the estimated farther (ie acurate 32.8ft calibration height i/o less than 32.8ft calib height) based on last years close data
+
+ggplot(data=moddat)+
+  geom_point(aes(x=c,y=f))+ #looks linear by the points
+  geom_abline(intercept = coef(fit)[1], slope = coef(fit)[2])#so yea looks nice and linear to the eye, worth modeling as a line
+#ylim(0,10)+xlim(0,10) yes that positive intercept really does mean at 0,0 the close trees are shorter. But the slope <1 makes up for that
+
+summary(fit)#99%r2 without even knowing anyuthing about how far from the tree we were or the actual calib distance; I think as long as we can estimate where they started growing from last year correctly we'll be good
+
+
+#merge arc attr tables with 2022 cruising data varrateNC-----
+#think dropbox as wd is outdated but just leaving this here as a reminder theres still duplicate data there.
+#setwd("C:/Users/sabloszi/Dropbox (FPC)/FPC Team Folder/RegionWide Trials/Special Studies/Variable Rate Fertilizer Application/2022 work near Louisburg NC/Data")
+setwd("Q:/Shared drives/FER - FPC Team/RegionWide Trials/RW29 Variable Rate x Herb/NC/Tabular_Data")
+
 
 v2023plots<-read_excel(paste0(getwd(),"/cruising-data-VarRate-20230405-stand127only-plots.xls"),
                        sheet="0",#skip=1,col_names =c("baeid_1","tocmgl_1","baeid_2","tocmgl_2"), 
@@ -2529,8 +2535,14 @@ v2023trees<-read_excel(paste0(getwd(),"/cruising-data-VarRate-20230405-stand127o
                        sheet="1",#skip=1,col_names =c("baeid_1","tocmgl_1","baeid_2","tocmgl_2"), 
                        #     col_types = c("numeric","skip","numeric","skip","skip","numeric","skip","numeric"),
                        trim_ws = T )
-v2022trees<-read.csv(file="C:/Users/sabloszi/Dropbox (FPC)/FPC Team Folder/RegionWide Trials/Special Studies/Variable Rate Fertilizer Application/2022 work near Louisburg NC/Data/cruising-data-VarRate-20220412-25.csv",header=T)%>%
+
+v2022trees<-read.csv(file="cruising-data-VarRate-20220412-25.csv",header=T)%>%
   mutate(tre=as.integer(tre))
+#
+v2023treesp<-read.csv(file="cruising-data-VarRate-20230405.csv",header=T)%>%
+  mutate(tre=as.integer(tre))
+
+
 #subset so just NC trees
 v2023plots<-subset(v2023plots,Other_stand==127&usmaxht!=99)
 #just get columns needed for ht2022 and ht 2023 comparison
@@ -2554,23 +2566,27 @@ v2023trees<-v2023trees%>%
   rename(.,Height_tip_2022="Htft")%>% #rename so it's easier to interpret
   rename(.,Height_node_2023="tree_height_2022")
 
+#need this for figure below; relating node height in 2023 to real/precise but inaccurate tree heigh in 2022
+#note "fit" for transponder data is elsewhere this doc
+fit2=  v2023trees%>%
+  subset(.,Height_node_2023>30)%>%#one must've been a typo b/c it says 27.6 ft tall and there weren't actually any trees under 30 in these three plots as Sean remembers it and htlc is above 30 for both years.
+  lm(data=.,Height_node_2023~Height_tip_2022)#model far as a function of close since we want to find out the estimated farther (ie acurate 32.8ft calibration height i/o less than 32.8ft calib height) based on last years close data
+summary(fit2)
+
+
 #what does the relationship between node2023 and tip2022 measurements look like
 v2023trees%>%
   subset(.,Height_node_2023>30)%>%#one must've been a typo b/c it says 27.6 ft tall and there weren't actually any trees under 30 in these three plots as Sean remembers it and htlc is above 30 for both years.
   #wex()
   ggplot(.,)+
   geom_point(aes(x=Height_tip_2022,y=Height_node_2023,color=PLOT))+
-  geom_text(aes(x=20,y=60),data=data.frame(x=NULL,y=NULL),label="Green is 1:1; Blue is tree model; Dash is bldg model")+
+  geom_text(aes(x=20,y=60),data=data.frame(x=NULL,y=NULL),label="Green is 1:1; Blue is tree model; Dash is bldg model")+ 
   geom_abline(intercept = coef(fit2)[1], slope = coef(fit2)[2],color="Blue")+
-  geom_abline(intercept = coef(fit)[1], slope = coef(fit)[2],linetype="dashed")+#jordan hall model where the transponder height was known as 4.5ft
+  geom_abline(intercept = coef(fit)[1], slope = coef(fit)[2],linetype="dashed")+#jordan hall model where the transponder height was known as 4.5ft ';  
   geom_abline(intercept = 0, slope = 1,color="green")+
   ylim(0,80)+xlim(0,80) #yes that positive intercept really does mean at 0,0 the 2022 tip trees are shorter. But the slope <1 makes up for that
 
 
-fit2=  v2023trees%>%
-  subset(.,Height_node_2023>30)%>%#one must've been a typo b/c it says 27.6 ft tall and there weren't actually any trees under 30 in these three plots as Sean remembers it and htlc is above 30 for both years.
-  lm(data=.,Height_node_2023~Height_tip_2022)#model far as a function of close since we want to find out the estimated farther (ie acurate 32.8ft calibration height i/o less than 32.8ft calib height) based on last years close data
-summary(fit2)
 
 #so in english:
 #Measuring accurately in 2023 is the same as 
@@ -2591,6 +2607,9 @@ summary(fit2)
 #... there is a rmse of ~8" vs about 18" for my in-the-pines model
 #... thsi is the RSE in the summary(fit) and is the square root of 
 #... the mean square error
+
+#ncvarrate cruising-data------
+
 
 #delete eventually- this is the all meetings table-----
 text='
