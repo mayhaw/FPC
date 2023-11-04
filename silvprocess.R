@@ -1,5 +1,5 @@
 #dbf read in and merging with xlsx and accdb etc----
-setwd(paste0(gsub("\\\\Documents","",Sys.getenv("HOME")),("\\Dropbox (FPC)\\Site index stands_anon")))
+setwd(normalizePath(paste0(gsub("\\\\Documents","",Sys.getenv("HOME")),("\\Dropbox (FPC)\\Site index stands_anon"))))
 midrot=10 #set the cutoff for Release and Thin to be included as a value in the global env for use later
 #get all the dbfs
 dbfc<-list.files(recursive = T)%>%
