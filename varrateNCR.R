@@ -1,3 +1,374 @@
+#Introduction/readme-----
+#Section 1.1-1.n is more or less raw data steps; no subsettting is done to remove dead or shrinking trees etc; but a correction based on a miscalibrated vertex in 2022 is applied
+#Section 1.1-1.n ... and this section is also meant to merge to GIS layers so has already been qc'ed as much as possible for typos from paper sheets etc
+#Section 2.1.2.n is for doing stats and making figures etc
+#1.1. read in data------------------------------------------------------------------------------------------------------------------------------------
+setwd("Q:/Shared drives/FER - FPC Team/RegionWide Trials/RW29 Variable Rate x Herb/NC/Tabular_Data")
+
+  #2023 vrt data
+    vrt23<-read.csv("cruising-data-VarRate-20230405.csv",
+              header = T,row.names = NULL)
+
+    #note the following two plots were measured on two dates in 2022, because the first time vicent and sean didn't know we needed Htlc and so just got everything but that. the second time (4/25/22) we got htlcft for the first/only time in 2022 (and htft again for kicks)
+    #55 1 rt516
+    #55 1 rt0   
+  #2022 vrt data
+    vrt22<-read.csv("cruising-data-VarRate-20220412-25.csv", 
+              header = T,row.names = NULL)
+    
+    
+#2022 Interlude - this is the three plots we recorded in Survey123 insted of paper like all the others in 2023
+    
+    
+      
+    vrt_Interlude<-read.csv("cruising-data-VarRate-20230405-stand127only.csv",header=T)
+
+#2022 Interlude - now just add plot numbers
+vrt_Interlude<-    
+      read.csv("cruising-data-VarRate-20230405-stand127only-plots.csv",header=T)%>%
+      subset(.,!is.na(plot)&plot>=1999)%>%#get rid of TX plots since they are all less than 3 digits
+      select(c(globalid,plot))%>%
+      merge(.,vrt_Interlude,by.x="globalid",by.y="parentglobalid",all.y=F)
+
+#whole treatment plot level information (includes herbicide trt)
+vrt_plots<-read.csv("management-data-VarRate-2022-groundplotsonly.csv"
+                        ,header=T) #this is based on a spatial join of the ground plots (plot_loc_center.shp) and the treatment plots (probably remove_NC00212.shp)
+
+#pick up seeing why this file above for mgt wont read in
+
+#whole plote areas calculated in ArcGisPro
+vrt_area<-read.csv("tree_locations_Minimum_Buffer.csv"
+                   ,header=T)
+          
+#lai information
+    #NCVarRate_0_2020_DUnder_MINMAX_Wint5Spr5
+    vrt_2020_DUnder<-read_excel("Lai excel sheets/NCVarRate_0_2020_DUnder_MINMAX_Wint5Spr5.xlsx"
+                                ,sheet=1)
+    #NCVarRate_0_2020_SRCLAI_MED_Wint5.tif
+    vrt_2020_SRCLAI<-read_excel("Lai excel sheets/NCVarRate_0_2020_SRCLAI_MED_Wint5.tif.xlsx"
+                                ,sheet=1)
+    #NCVarRate_0_2021_DUnder_MINMAX_Wint5Spr5.tif
+    vrt_2021_DUnder<-read_excel("Lai excel sheets/NCVarRate_0_2021_DUnder_MINMAX_Wint5Spr5.tif.xlsx"
+                                ,sheet=1)
+    #NCVarRate_0_2021_SRCLAI_MED_Wint5.tif
+    vrt_2021_SRCLAI<-read_excel("Lai excel sheets/NCVarRate_0_2021_SRCLAI_MED_Wint5.tif.xlsx" #missing both 139 plots
+                                ,sheet=1)
+    #NCVarRate_0_2022_DUnder_MINMAX_Wint5Spr5.tif
+    vrt_2022_DUnder<-read_excel("Lai excel sheets/NCVarRate_0_2022_DUnder_MINMAX_Wint5Spr5.tif.xlsx"
+                                ,sheet=1)
+    #NCVarRate_0_2022_SRCLAI_MED_Wint8.tif
+    vrt_2022_SRCLAI<-read_excel("Lai excel sheets/NCVarRate_0_2022_SRCLAI_MED_Wint8.tif.xlsx" #missing both 139 plots
+                                ,sheet=1) 
+    #NCVarRate_0_2023_DUnder_MINMAX_Wint5Spr5.tif
+    vrt_2023_DUnder<-read_excel("Lai excel sheets/NCVarRate_0_2023_DUnder_MINMAX_Wint5Spr5.tif.xlsx"
+                                ,sheet=1)
+    #NCVarRate0_2023_SRCLAI_MED_Wint3.tiff
+    vrt_2023_SRCLAI<-read_excel("Lai excel sheets/NCVarRate0_2023_SRCLAI_MED_Wint3.tiff.xlsx"
+                                ,sheet=1)
+#1.2. Data processing (mutations)------------------------------------------------------------------------------------------------------------------------------------
+
+vrt22<- #clean up formatting of columns and get rid of NA data for 2022from paper sheets
+  vrt22%>%
+  mutate(.,Htft=as.numeric(Htft))%>%
+  mutate(.,Htlcft=as.numeric(Htlcft))%>%# 
+  rename("Htft_wrong22in22"=Htft)%>% #keeping Htft_wrong22in22 in the data so I can demonstrate where the correction coefficients 0.8124)+3.5549 came from 
+       rename("Htlcft_wrong22in22"=Htlcft)%>%#keeping Htlcft_wrong22in22 in the data so I can demonstrate where the correction coefficients 0.8124)+3.5549 came from 
+       mutate(.,Htft=(Htft_wrong22in22*0.8284)+2.5323)%>% #Vertex wasnt calibrated right; need to apply this linear function to make tree heights measured in 2022 shorter (~81% of their recorded height) and correct (they were too "tall" so it appeared that trees shrank from 22 to 23 which is nonsense)
+       mutate(.,Htlcft=(Htlcft_wrong22in22*0.8284)+2.5323)%>% #Vertex wasnt calibrated right; need to apply this linear function to make tree heights measured in 2022 shorter (~81% of their recorded height) and correct (they were too "tall" so it appeared that trees shrank from 22 to 23 which is nonsense)
+   mutate(.,Dbhin=as.numeric(Dbhin))%>%
+  mutate(.,site=as.factor(site))%>%
+  mutate(.,rt=as.factor(rt))%>%
+  mutate(.,tre=as.integer(tre))%>%
+  mutate(.,plot=as.factor(plot))%>%
+  mutate(.,d=ifelse(d=="CANKER","R",d))%>% #assuming cankers that weren't specified as pitch canker were pitch since most are that
+    arrange(site,rt,plot,tre,desc(date))%>%
+    fill(.,Htlcft)%>%     #there are duplicates for some plots bc we went back and measured htlc separately
+    subset(.,!is.na(Dbhin))#get rid of rows that have the second time we measured height a few weeks later but also have no other useful data since I filled down the htlc from those rows
+
+vrt23<-#clean up formatting of columns and get rid of NA data for 2023 from paper sheets
+  vrt23%>%
+  mutate(.,Htft=as.numeric(Htft))%>%
+  mutate(.,Dbhin=as.numeric(Dbhin))%>%
+  mutate(.,site=as.factor(site))%>%
+  mutate(.,rt=as.factor(as.integer(rt)))%>%
+  mutate(.,plot=as.factor(plot))%>%
+  mutate(.,tre=as.integer(tre))%>%
+  mutate(.,Htlcft=as.numeric(Htlcft))%>%
+  subset(!(site==55&is.na(Dbhin)))%>%
+  mutate(.,d=ifelse(d=="CANKER","R",d))%>% #assuming cankers that weren't specified as pitch canker were pitch since most are that
+  mutate(.,d=ifelse(d=="N/CANKER","N,R",d))%>% #make it same format as the other forked canker trees
+  mutate(.,d=ifelse(d=="RN","N,R",d))%>% #make it same format as the other forked canker trees
+    mutate(.,d=ifelse(d=="",NA,d)) #make it same format as the other forked canker trees
+
+
+
+#get Interlude ready to be rbinded into vrt23 (to add the last three plots to the data) 
+vrt_Interlude<- #this is the three plots where we entered data in survey123 instead of paper sheets
+  vrt_Interlude%>%
+  #get "new" names for the =old names in vrt_interlude data so they match the vrt22 and vrt23 datanames
+  rename("Dbhin"=dbh)%>%
+  rename("Htlcft"=htlc)%>%
+  rename("Htft"=lbttlht)%>%
+  rename("Htft22in23"=tree_height_2022)%>% #column of estimated 2022 heights recorded in 2023 by pointing vertex at the highest branch point
+  rename("tre"=treeno)%>%
+#might need to get more columns from this but for now (6/30/23) this is good - sean bloszies
+  select(c(Dbhin,Htlcft,Htft,Htft22in23,lcl,tre,plot))%>%
+  #split the plot column into plot and rt
+  mutate(rt=substr(plot,2,4))%>%
+  mutate(plot=as.integer(substr(plot,1,1)))%>%
+      subset(.,plot<1000)%>%
+  #select(-plot)%>%
+     mutate(.,rt=as.factor(as.integer(rt)))%>%
+  mutate(.,plot=as.factor(plot))%>%
+  mutate(.,site=127)%>%
+  mutate(.,site=as.factor(site))%>%
+  mutate(.,tre=as.integer(tre))%>%
+    subset(.,Dbhin<99)%>% #Sean left some nonsense test data in the web layer this came from where Dbhin==99 ie these two rows that this subset removes were not real trees
+mutate(.,Htft22in23=abs(lcl-Htft22in23))%>% #mhiguit_NCSU was recording Htft22in23 in the lcl field and sabloszi_NCSU was doing vice versa so this coalssces the two
+    select(-lcl)
+  
+
+#merge  those 90ish trees from vrt_interlude into vrt23  
+vrt23<-
+  merge(vrt23,vrt_Interlude,all=T,by= #or replace vrt_Interlude with select(vrt_Interlude,-Htft22in23) if you dont want the branching heighs estimates data
+          c("site","rt","plot","tre"))%>%
+    mutate(.,Htft=coalesce(Htft.x,Htft.y))%>%
+    mutate(.,Dbhin=coalesce(Dbhin.x,Dbhin.y))%>%
+    mutate(.,Htlcft=coalesce(Htlcft.x,Htlcft.y))%>%
+    select(-c(Htft.x,Htft.y,Dbhin.x,Dbhin.y,Htlcft.x,Htlcft.y))
+#note this adds one tree from vrt_interlude and i need to eventuall figure out what that is ctrlf+aa80939sa8na93t2
+
+vrt<-
+  merge(vrt23,vrt22, by = c("plot","site","rt","rep","tre"), suffixes=c("23","22"),all=T)%>%
+    #note this adds 3 trees that were lost from 22 to 23 (ie they existed as rows in 22 but not 23 which is weird b/c this shouldnt happen)
+  mutate(.,Htft=Htft23-Htft22)%>%
+  mutate(.,Htlcft=Htlcft23-Htlcft22)%>%
+  mutate(.,Dbhin=Dbhin23-Dbhin22)%>%
+  mutate(.,CrownLength23=Htft23-Htlcft23)%>%
+  mutate(.,CrownLength22=Htft22-Htlcft22)%>%
+  mutate(.,CrownLength=CrownLength23-CrownLength22)%>%
+    rename(.,percov="percentage.covered")%>%
+    mutate(.,percov=as.numeric(gsub("%","",percov)))%>% #note this only comes from 2022
+  mutate(.,d23=substr(d23,1,1)) #we wrote multiple codes for some trees' damage in 2023; I always put the one that could  change height first (eg forking, top dieback, etc)
+
+#1.3. Write back out to excel to merge onto GIS-----
+#get working directory up to this point in the .r:
+passthroughwd<-getwd()
+#Reset wd so it is wherever tabular data for rw29 lives:
+setwd("Q:/Shared drives/FER - FPC Team/RegionWide Trials/RW29 Variable Rate x Herb/NC/Tabular_Data")
+vrt%>%
+  wex()#need to probably make final vrt long (2022 and 2023 in same columns), pick up here fnas 11/6/23
+write_xlsx(
+  .,
+  path = "cruising-data-VarRate.xlsx",#this is the final merged 2022/2023/20___ tree data
+  col_names = TRUE,
+  format_headers = TRUE,
+  use_zip64 = FALSE
+)
+
+#2.1. remove any negative growth whatsoever for now, and do volume calcs----
+vrt<-    
+  vrt%>%
+  mutate(.,CrownLength=ifelse(CrownLength<0,NA,CrownLength), #wow ~328 negs here
+         Dbhin=ifelse(Dbhin<0,NA,Dbhin), #only 34 negs here
+         Htlcft=ifelse(Htlcft<0,NA,Htlcft), #~289 negs here
+         Htft=ifelse(Htft<0,NA,Htft))%>% #~129 negs here
+  mutate(.,v22=ifelse(site==139, #this gives you volume per tree
+                  (0.21949+(0.00238 * Dbhin22 * Dbhin22 * Htft22)), #true, unthined, Units will be vol in ft3/tree, dbh in inches, ht in ft.  
+                  (0.25663+(0.00239 * Dbhin22 * Dbhin22 * Htft22)) #false, thinned 
+  ))%>%
+  mutate(.,v23=ifelse(site==139, #this gives you volume per tree
+                    (0.21949+(0.00238 * Dbhin23 * Dbhin23 * Htft23)), #true, unthined, Units will be vol in ft3/tree, dbh in inches, ht in ft.  
+                    (0.25663+(0.00239 * Dbhin23 * Dbhin23 * Htft23)) #false, thinned 
+  ))%>%
+  mutate(.,site_rate=paste0(site,"_",rt))%>%
+#  mutate(.,site_herb=paste0(site,"_",herb))%>%
+  mutate(v=v23-v22)
+
+#now get the herb and other mgt and plot scale etcdata merged in vrt:
+vrt<-vrt_plots%>% #vrt_plots is based on the gis , was from a shp remove_NC_0021 or somehintg
+  select("Name",'GID','HARV_TY','Herb','ResrcID','Acres','SUBGRID','CLAI','MAJ_ARE','GRID_AR','CLAI_GR','COMPLET','StandID','fert_rx','N_lbac','MAPlbac','MAPNlbac','Urealbac','fragArea','MAPlbs','Urealbs','MAPLAB')%>%
+  select(-Herb)%>% #note for the 26 grond plots the three columns Herb, Herbicide, and MAJ_AREA are all the same so can just keep one. MAJ_AREA is I think the most helpful one in the GIS at stand scale but that doesnt really matter for these 26 plots
+  merge(.,vrt,by.x="Name",by.y="PLOT")
+vrt<-
+  merge(vrt,vrt_area,all=T,by=c("Name"))
+#2.2. basal area math ----
+vrt <-
+  vrt%>%
+  #mutate(basalarea22w=.005454*Dbhin22^2)%>% # same thing but less clear as below
+  #mutate(basalarea23w=.005454*Dbhin23^2)%>% #  same thing but less clear as below
+  mutate(basalarea22=(pi*((Dbhin22/2)^2))/144)%>% # also note its converteing to feet^2 since all futher use needs to be in ft2
+  mutate(basalarea23=(pi*((Dbhin23/2)^2))/144)%>%# also note its converteing to feet^2 since all futher use needs to be in ft2
+  mutate(basalarea=basalarea23-basalarea22) #basal area increment per tree in ft^2
+
+
+
+#2.3. GET RID OF DAMAGED (SHRINKING) TREES from vrt-----
+  #so get rid of physical damaged trees and dead trees
+vrt<-  vrt%>%
+  subset(.,!(d23%in%c("D","M","O","P","U")|d22%in%c("D","M","O","P","U")))%>% #get rid of any trees that would actually shrink - there are ~20 that had dieback, bent over etc
+  subset(.,(m23=="A"&m22=="A")) #only want trees that were alive both years (no deads in 2022 but ~7 died by 2023)
+
+
+
+#2.4. Add in lai data=====
+#Needed to fully show lai data-
+#options(max.print=1000000)
+
+#old version of lai final, delete later probably
+  #vrt_lai_final <- list(vrt_2020_DUnder, vrt_2020_SRCLAI, vrt_2021_DUnder, vrt_2021_SRCLAI,vrt_2022_DUnder, vrt_2022_SRCLAI, vrt_2023_DUnder, vrt_2023_SRCLAI)
+  #Reduce(function(x, y) merge(x, y, all=TRUE), df_list)
+
+#code for getting lai information labled and combined
+vrt_2020_DUnder <- vrt_2020_DUnder %>%
+  mutate(LAI_YEAR_TYPE= if_else(.$OBJECTID > 27, 'vrt_2020_DUnder', 'vrt_2020_DUnder'))
+vrt_2020_SRCLAI <- vrt_2020_SRCLAI %>%
+  mutate(LAI_YEAR_TYPE= if_else(.$OBJECTID > 27, 'vrt_2020_SRCLAI', 'vrt_2020_SRCLAI'))
+vrt_2021_DUnder <- vrt_2021_DUnder %>%
+  mutate(LAI_YEAR_TYPE= if_else(.$OBJECTID > 27, 'vrt_2021_DUnder', 'vrt_2021_DUnder'))
+vrt_2021_SRCLAI <- vrt_2021_SRCLAI %>%
+  mutate(LAI_YEAR_TYPE= if_else(.$OBJECTID > 27, 'vrt_2021_SRCLAI', 'vrt_2021_SRCLAI'))
+vrt_2022_DUnder <- vrt_2022_DUnder %>%
+  mutate(LAI_YEAR_TYPE= if_else(.$OBJECTID > 27, 'vrt_2022_DUnder', 'vrt_2022_DUnder'))
+vrt_2022_SRCLAI <- vrt_2022_SRCLAI %>%
+  mutate(LAI_YEAR_TYPE= if_else(.$OBJECTID > 27, 'vrt_2022_SRCLAI', 'vrt_2022_SRCLAI'))
+vrt_2023_DUnder <- vrt_2023_DUnder %>%
+  mutate(LAI_YEAR_TYPE= if_else(.$OBJECTID > 27, 'vrt_2023_DUnder', 'vrt_2023_DUnder'))
+vrt_2023_SRCLAI <- vrt_2023_SRCLAI %>%
+  mutate(LAI_YEAR_TYPE= if_else(.$OBJECTID > 27, 'vrt_2023_SRCLAI', 'vrt_2023_SRCLAI'))
+
+vrt_2020_DUnder <- vrt_2020_DUnder %>%
+  mutate(Year= if_else(.$OBJECTID > 27, '2020', '2020'))
+vrt_2020_SRCLAI <- vrt_2020_SRCLAI %>%
+  mutate(Year= if_else(.$OBJECTID > 27, '2020', '2020'))
+vrt_2021_DUnder <- vrt_2021_DUnder %>%
+  mutate(Year= if_else(.$OBJECTID > 27, '2021', '2021'))
+vrt_2021_SRCLAI <- vrt_2021_SRCLAI %>%
+  mutate(Year= if_else(.$OBJECTID > 27, '2021', '2021'))
+vrt_2022_DUnder <- vrt_2022_DUnder %>%
+  mutate(Year= if_else(.$OBJECTID > 27, '2022', '2022'))
+vrt_2022_SRCLAI <- vrt_2022_SRCLAI %>%
+  mutate(Year= if_else(.$OBJECTID > 27, '2022', '2022'))
+vrt_2023_DUnder <- vrt_2023_DUnder %>%
+  mutate(Year= if_else(.$OBJECTID > 27, '2023', '2023'))
+vrt_2023_SRCLAI <- vrt_2023_SRCLAI %>%
+  mutate(Year= if_else(.$OBJECTID > 27, '2023', '2023'))
+
+
+vrt_lai1<-merge(vrt_2020_DUnder,vrt_2020_SRCLAI,all=T,by=c("Name","OBJECTID","ZONE_CODE","COUNT","AREA","MEAN","LAI_YEAR_TYPE","Year"))
+
+vrt_lai2<-merge(vrt_lai1,vrt_2021_DUnder,all=T,by=c("Name","OBJECTID","ZONE_CODE","COUNT","AREA","MEAN","LAI_YEAR_TYPE","Year"))
+
+vrt_lai3<-merge(vrt_lai2,vrt_2021_SRCLAI,all=T,by=c("Name","OBJECTID","ZONE_CODE","COUNT","AREA","MEAN","LAI_YEAR_TYPE","Year"))
+
+vrt_lai4<-merge(vrt_lai3,vrt_2022_DUnder,all=T,by=c("Name","OBJECTID","ZONE_CODE","COUNT","AREA","MEAN","LAI_YEAR_TYPE","Year"))
+
+vrt_lai5<-merge(vrt_lai4,vrt_2022_SRCLAI,all=T,by=c("Name","OBJECTID","ZONE_CODE","COUNT","AREA","MEAN","LAI_YEAR_TYPE","Year"))
+
+vrt_lai6<-merge(vrt_lai5,vrt_2023_DUnder,all=T,by=c("Name","OBJECTID","ZONE_CODE","COUNT","AREA","MEAN","LAI_YEAR_TYPE","Year"))
+
+vrt_lai_final<-
+  merge(vrt_lai6,vrt_2023_SRCLAI,all=T,by=c("Name","OBJECTID","ZONE_CODE","COUNT","AREA","MEAN","LAI_YEAR_TYPE","Year"))%>%
+    mutate(.,LAI_YEAR_TYPE=gsub("[^SRCDU]","",LAI_YEAR_TYPE ))
+#temporary lai csv saved to same folder as this R file
+#vrt_lai_final%>%
+#  merge(.,vrt_grdplt[,c("Name","MAJ_ARE","fert_rx","N_lbac")],by="Name",all.x=T)%>%
+#  write.csv(.,file="Q:/Shared drives/FER - FPC Team/Variable Rate/Workspaces/Farmer_Michael/R/varrateNCR_LAI_delete.csv")
+
+ 
+
+#and keep just the lai collumns for vrt_grdplts itself
+vrt_lai_final<-vrt_lai_final%>%
+  select(c(Name,MEAN,LAI_YEAR_TYPE,Year))%>%
+  cast(.,Name~LAI_YEAR_TYPE+Year,value="MEAN")
+
+#I don't know what this is, but it is not working.
+#vrt_lai_final<-vrt_lai_final%>%
+  #select(-c(OBJECTID,ZONE_CODE,COUNT,AREA))%>% #git rid of stuff from GIS thats not helpful or AREA which is elsewhere in vrt
+  #mutate(.,LAI_YEAR_TYPE=gsub("vrt_20","y",LAI_YEAR_TYPE))%>%
+  #cast(Name~LAI_YEAR_TYPE,value="MEAN")
+
+#Sean moved this line to the plot scale data set since it's not lai by tree: vrt<-merge(vrt,vrt_lai_final,all=T,by=c("Name"))
+
+#3.1. merging plot numbers to main.RW29_NCVarRate_MasterPlotPlan ----
+library(rgdal)# for st_read and ogrListLayers
+library(readxl)
+setwd("Q:/Shared drives/FER - FPC Team/RegionWide Trials/RW29 Variable Rate x Herb")
+#see what's in the main newish (as of 10/2023) gpkg
+ogrListLayers(paste0(getwd(),"/NC/GIS/RW29_NCVarRate_allLayers.gpkg"))
+#Get the main measurement plot layer
+meas<-st_read(paste0(getwd(),"/NC/GIS/RW29_NCVarRate_allLayers.gpkg"),
+              layer = "RW29_NCVarRate_IntMeasPlots"        )%>%
+  as_tibble()
+trt<-st_read(paste0(getwd(),"/NC/GIS/RW29_NCVarRate_allLayers.gpkg"),
+             layer = "RW29_NCVarRate_MasterPlotPlan"        )%>%
+  unique()%>%
+  as_tibble()
+
+meas%>%
+  select(SUB_ID)
+#these are the columns of old factor level names and what new level names they correspond to by factor
+level_match<-read_excel(paste0(getwd(),"/RW29_VarRate_Trtcodes_5-24-2023.xlsx"),
+                        sheet="current treatment levels",
+                        trim_ws = T )
+pln<-read_excel(paste0(getwd(),"/RW29_VarRate_Trtcodes_5-24-2023.xlsx"),
+                sheet="planned treatment codes",
+                trim_ws = T )%>%head(20)
+#this simple function was a way to rename the levels of variable really explicityl 
+cbmgtnms<- function(these,df){#combine management with similar ones "1/0 is it a date?" column
+  #df<-df[df$company==dfcompany,]
+  reduce2(df$old, df$new,  .init = these, str_replace)
+}
+
+#allcodes<-
+trt%>%
+  select(c(ResrcID,GID,Herb,fert_FINAL,fert_rx))%>%
+  as.data.table()%>%
+  melt.data.table(id.vars=c("ResrcID","GID"))%>%
+  mutate(.,value=cbmgtnms(these=value,df=level_match))%>% #rename the stuff in the "these" column for "company" whatevr in variable_match
+  unique()%>% #there are two kinds of duplicates of GIDs- by grid squares that are split by roads etc and b/c some grid squares are stacked one on top of another
+  head()#pick up here figuring out what to do about herbs that go across squares as y and n
+cast(.,ResrcID+GID~variable)%>%
+  merge(.,pln,by.x=c("Herb" ,"fert_FINAL",   "fert_rx"),
+        by.y=c("Herbicide (Y/N)","Application Rate", "Application method"),all=T)%>%
+  select(c(ResrcID, GID,'Treatment code',Herb, fert_FINAL,   fert_rx       ))%>%
+  subset(!is.na(`Treatment code`))%>%# these are neighbors so dont get their own PLOT number in the end
+  arrange(ResrcID,GID)%>% #decided to preserve the alplanumeric order the ResrcID and then GIDs were already in...
+  group_by(ResrcID,`Treatment code`)%>% #... and then to have the numbers count up within a RescrID X Treatment code combo
+  mutate(REP=10:(n()+9))%>%#make rep numbers that start over in each STDY
+  ungroup()%>% #grouping again by different thing next so ungrou
+  group_by(ResrcID) %>% mutate(STDY = 291200+cur_group_id())%>% #tim said use 12 for manulife
+  mutate(.,PLOT=(100*REP)+as.integer(`Treatment code`))%>% #make plot numbers
+  arrange(ResrcID,`Treatment code`,PLOT)
+
+#Q:\Shared drives\FER - FPC Team
+
+pathz="RW29_VarRate_Trtcodes_5-24-2023.xlsx"
+pathz%>%
+  excel_sheets()%>%
+  set_names()%>%
+  purrr::map(read_xlsx,path=pathz)%>%
+  c(.,list(allcodes=allcodes))%>%#be careful bc this allcodes=allcodes is set to overwrite whatever is in the sheet named allcodes
+  write_xlsx(
+    .,
+    path = "RW29_VarRate_Trtcodes_5-24-2023.xlsx",
+    col_names = TRUE,
+    format_headers = TRUE,
+    use_zip64 = FALSE
+  )
+
+
+#3.2. QC on RW29_NCVarRate_allLayers.gpkg-----  
+#in RW29_NCVarRate_MasterPlotPlan there are lots of duplicates, like you click on a polygon and there are four identical one on top of the other with all the same columns ; the only column that differentieates them is fid. fid doesnt show up with st read as is so you can use unique to get rid of the dups
+#Note there are at least some trees in 139's control N ground plot that are in a neighbor plot that we'll have to manually asign the PLOT to if I use the fert_rx to assign levels since those arent' in the "planned treatment codes" table
+#Ok so if we go with the allcodes join, can we just assign the trees plot numbers based on the allcodes PLOT theyre in?
+#113 (124): yes this ones easy, only a few trees span two SUBIDs and then theyre both exact same mgt just two reps and none are in neighbors
+#55       : yes this ones easy, no         trees span two SUBIDs and                                               and none are in neighbors
+#139      : the most effed bc a bunch of trees are in a neighbor that doesnt get a PLOT,; furthermore most of the trees are in a neighbor so .... cant do plot center or majority area or anything. also there are trees that are spanning an LAIbased and a random verson of the 100lb/ac herb trt
+#127      :  there are trees that are spanning an LAIbased and a random verson of the 300lb/ac herb trt. there's another two sets of ground plots where they span two nextdoor instances of the same herbXmethodXfert treatment
+#ok so see what these problems mean in terms of what the groundplot outlines got assigned for their SUBID; if they make sense go ahead and join the plot to the groundplot and then the groundplot to the trees in them and fuck off
+
+
 #todo/fix things lines:------
 #1.1 volume growht from 2022 to 20223 boxplots by the frt rate
 #1.2 height growht from 2022 to 20223 boxplots by the frt rate
@@ -92,282 +463,6 @@ library("readxl")
 wex<- function(x,row.names=FALSE,col.names=TRUE,...) {
   write.table(x,file="clipboard-32768",sep="\t",row.names=row.names,col.names=col.names,...)  } 
 
-
-#middle computer File paths (use this one)------------------------------------------------------------------------------------------------------------------------------------
-#Note 6/30/23 sean changed the drive letter from "Q:/" to "G:/" so these would work on his computer too
-
-#Michael you might need to change the drive letter here from "Q" to "G" or back again if things wont read in
-#setwd("Q:/Shared drives/FER - FPC Team/")    
-setwd("Q:/Shared drives/FER - FPC Team/RegionWide Trials/RW29 Variable Rate x Herb/NC/Tabular_Data")
-
-  #2023 vrt data
-    vrt23<-read.csv("cruising-data-VarRate-20230405.csv",
-              header = T,row.names = NULL)
-
-    #note the following two plots were measured on two dates in 2022, because the first time vicent and sean didn't know we needed Htlc and so just got everything but that. the second time (4/25/22) we got htlcft for the first/only time in 2022 (and htft again for kicks)
-    #55 1 rt516
-    #55 1 rt0   
-  #2022 vrt data
-    vrt22<-read.csv("cruising-data-VarRate-20220412-25.csv", 
-              header = T,row.names = NULL)
-    
-    
-#2022 Interlude - this is the three plots we recorded in Survey123 insted of paper like all the others in 2023
-    
-    
-      
-    vrt_Interlude<-read.csv("cruising-data-VarRate-20230405-stand127only.csv",header=T)
-
-#2022 Interlude - now just add plot numbers
-vrt_Interlude<-    
-      read.csv("cruising-data-VarRate-20230405-stand127only-plots.csv",header=T)%>%
-      subset(.,!is.na(plot)&plot>=1999)%>%#get rid of TX plots since they are all less than 3 digits
-      select(c(globalid,plot))%>%
-      merge(.,vrt_Interlude,by.x="globalid",by.y="parentglobalid",all.y=F)
-
-#whole treatment plot level information (includes herbicide trt)
-vrt_plots<-read.csv("management-data-VarRate-2022-groundplotsonly.csv"
-                        ,header=T) #this is based on a spatial join of the ground plots (plot_loc_center.shp) and the treatment plots (probably remove_NC00212.shp)
-
-#pick up seeing why this file above for mgt wont read in
-
-#whole plote areas calculated in ArcGisPro
-vrt_area<-read.csv("tree_locations_Minimum_Buffer.csv"
-                   ,header=T)
-          
-#lai information
-    #NCVarRate_0_2020_DUnder_MINMAX_Wint5Spr5
-    vrt_2020_DUnder<-read_excel("Lai excel sheets/NCVarRate_0_2020_DUnder_MINMAX_Wint5Spr5.xlsx"
-                                ,sheet=1)
-    #NCVarRate_0_2020_SRCLAI_MED_Wint5.tif
-    vrt_2020_SRCLAI<-read_excel("Lai excel sheets/NCVarRate_0_2020_SRCLAI_MED_Wint5.tif.xlsx"
-                                ,sheet=1)
-    #NCVarRate_0_2021_DUnder_MINMAX_Wint5Spr5.tif
-    vrt_2021_DUnder<-read_excel("Lai excel sheets/NCVarRate_0_2021_DUnder_MINMAX_Wint5Spr5.tif.xlsx"
-                                ,sheet=1)
-    #NCVarRate_0_2021_SRCLAI_MED_Wint5.tif
-    vrt_2021_SRCLAI<-read_excel("Lai excel sheets/NCVarRate_0_2021_SRCLAI_MED_Wint5.tif.xlsx" #missing both 139 plots
-                                ,sheet=1)
-    #NCVarRate_0_2022_DUnder_MINMAX_Wint5Spr5.tif
-    vrt_2022_DUnder<-read_excel("Lai excel sheets/NCVarRate_0_2022_DUnder_MINMAX_Wint5Spr5.tif.xlsx"
-                                ,sheet=1)
-    #NCVarRate_0_2022_SRCLAI_MED_Wint8.tif
-    vrt_2022_SRCLAI<-read_excel("Lai excel sheets/NCVarRate_0_2022_SRCLAI_MED_Wint8.tif.xlsx" #missing both 139 plots
-                                ,sheet=1) 
-    #NCVarRate_0_2023_DUnder_MINMAX_Wint5Spr5.tif
-    vrt_2023_DUnder<-read_excel("Lai excel sheets/NCVarRate_0_2023_DUnder_MINMAX_Wint5Spr5.tif.xlsx"
-                                ,sheet=1)
-    #NCVarRate0_2023_SRCLAI_MED_Wint3.tiff
-    vrt_2023_SRCLAI<-read_excel("Lai excel sheets/NCVarRate0_2023_SRCLAI_MED_Wint3.tiff.xlsx"
-                                ,sheet=1)
-#Data processing (mutations)------------------------------------------------------------------------------------------------------------------------------------
-
-vrt22<- #clean up formatting of columns and get rid of NA data for 2022from paper sheets
-  vrt22%>%
-  mutate(.,Htft=as.numeric(Htft))%>%
-  mutate(.,Htlcft=as.numeric(Htlcft))%>%# 
-  rename("Htft_wrong22in22"=Htft)%>% #keeping Htft_wrong22in22 in the data so I can demonstrate where the correction coefficients 0.8124)+3.5549 came from 
-       rename("Htlcft_wrong22in22"=Htlcft)%>%#keeping Htlcft_wrong22in22 in the data so I can demonstrate where the correction coefficients 0.8124)+3.5549 came from 
-       mutate(.,Htft=(Htft_wrong22in22*0.8284)+2.5323)%>% #Vertex wasnt calibrated right; need to apply this linear function to make tree heights measured in 2022 shorter (~81% of their recorded height) and correct (they were too "tall" so it appeared that trees shrank from 22 to 23 which is nonsense)
-       mutate(.,Htlcft=(Htlcft_wrong22in22*0.8284)+2.5323)%>% #Vertex wasnt calibrated right; need to apply this linear function to make tree heights measured in 2022 shorter (~81% of their recorded height) and correct (they were too "tall" so it appeared that trees shrank from 22 to 23 which is nonsense)
-   mutate(.,Dbhin=as.numeric(Dbhin))%>%
-  mutate(.,site=as.factor(site))%>%
-  mutate(.,rt=as.factor(rt))%>%
-  mutate(.,tre=as.integer(tre))%>%
-  mutate(.,plot=as.factor(plot))%>%
-  mutate(.,d=ifelse(d=="CANKER","R",d))%>% #assuming cankers that weren't specified as pitch canker were pitch since most are that
-    arrange(site,rt,plot,tre,desc(date))%>%
-            
-    fill(.,Htlcft)%>%     #there are duplicates for some plots bc we went back and measured htlc separately
-    subset(.,!is.na(Dbhin))#get rid of rows that have the second time we measured height a few weeks later but also have no other useful data since I filled down the htlc from those rows
-
-vrt23<-#clean up formatting of columns and get rid of NA data for 2023 from paper sheets
-  vrt23%>%
-  mutate(.,Htft=as.numeric(Htft))%>%
-  mutate(.,Dbhin=as.numeric(Dbhin))%>%
-  mutate(.,site=as.factor(site))%>%
-  mutate(.,rt=as.factor(as.integer(rt)))%>%
-  mutate(.,plot=as.factor(plot))%>%
-  mutate(.,tre=as.integer(tre))%>%
-  mutate(.,Htlcft=as.numeric(Htlcft))%>%
-  subset(!(site==55&is.na(Dbhin)))%>%
-  mutate(.,d=ifelse(d=="CANKER","R",d))%>% #assuming cankers that weren't specified as pitch canker were pitch since most are that
-  mutate(.,d=ifelse(d=="N/CANKER","N,R",d))%>% #make it same format as the other forked canker trees
-  mutate(.,d=ifelse(d=="RN","N,R",d))%>% #make it same format as the other forked canker trees
-    mutate(.,d=ifelse(d=="",NA,d)) #make it same format as the other forked canker trees
-
-
-
-#get Interlude ready to be rbinded into vrt23 (to add the last three plots to the data) 
-vrt_Interlude<- #this is the three plots where we entered data in survey123 instead of paper sheets
-  vrt_Interlude%>%
-  #get "new" names for the =old names in vrt_interlude data so they match the vrt22 and vrt23 datanames
-  rename("Dbhin"=dbh)%>%
-  rename("Htlcft"=htlc)%>%
-  rename("Htft"=lbttlht)%>%
-  rename("Htft22in23"=tree_height_2022)%>% #column of estimated 2022 heights recorded in 2023 by pointing vertex at the highest branch point
-  rename("tre"=treeno)%>%
-#might need to get more columns from this but for now (6/30/23) this is good - sean bloszies
-  select(c(Dbhin,Htlcft,Htft,Htft22in23,lcl,tre,plot))%>%
-  #split the plot column into plot and rt
-  mutate(rt=substr(plot,2,4))%>%
-  mutate(plot=as.integer(substr(plot,1,1)))%>%
-      subset(.,plot<1000)%>%
-  #select(-plot)%>%
-     mutate(.,rt=as.factor(as.integer(rt)))%>%
-  mutate(.,plot=as.factor(plot))%>%
-  mutate(.,site=127)%>%
-  mutate(.,site=as.factor(site))%>%
-  mutate(.,tre=as.integer(tre))%>%
-    subset(.,Dbhin<99)%>% #Sean left some nonsense test data in the web layer this came from where Dbhin==99 ie these two rows that this subset removes were not real trees
-mutate(.,Htft22in23=abs(lcl-Htft22in23))%>% #mhiguit_NCSU was recording Htft22in23 in the lcl field and sabloszi_NCSU was doing vice versa so this coalssces the two
-    select(-lcl)
-  
-
-#merge  those 90ish trees from vrt_interlude into vrt23  
-vrt23<-
-  merge(vrt23,vrt_Interlude,all=T,by= #or replace vrt_Interlude with select(vrt_Interlude,-Htft22in23) if you dont want the branching heighs estimates data
-          c("site","rt","plot","tre"))%>%
-    mutate(.,Htft=coalesce(Htft.x,Htft.y))%>%
-    mutate(.,Dbhin=coalesce(Dbhin.x,Dbhin.y))%>%
-    mutate(.,Htlcft=coalesce(Htlcft.x,Htlcft.y))%>%
-    select(-c(Htft.x,Htft.y,Dbhin.x,Dbhin.y,Htlcft.x,Htlcft.y))
-#note this adds one tree from vrt_interlude and i need to eventuall figure out what that is ctrlf+aa80939sa8na93t2
-
-vrt<-
-  merge(vrt23,vrt22, by = c("plot","site","rt","rep","tre"), suffixes=c("23","22"),all=T)%>%
-    #note this adds 3 trees that were lost from 22 to 23 (ie they existed as rows in 22 but not 23 which is weird b/c this shouldnt happen)
-  mutate(.,Htft=Htft23-Htft22)%>%
-  mutate(.,Htlcft=Htlcft23-Htlcft22)%>%
-  mutate(.,Dbhin=Dbhin23-Dbhin22)%>%
-  mutate(.,CrownLength23=Htft23-Htlcft23)%>%
-  mutate(.,CrownLength22=Htft22-Htlcft22)%>%
-  mutate(.,CrownLength=CrownLength23-CrownLength22)%>%
-    rename(.,percov="percentage.covered")%>%
-    mutate(.,percov=as.numeric(gsub("%","",percov))) #note this only comes from 2022
-
-#remove any negative growth whatsoever for now, and do volume calcs----
-vrt<-    
-  vrt%>%
-  mutate(.,CrownLength=ifelse(CrownLength<0,NA,CrownLength), #wow ~328 negs here
-         Dbhin=ifelse(Dbhin<0,NA,Dbhin), #only 34 negs here
-         Htlcft=ifelse(Htlcft<0,NA,Htlcft), #~289 negs here
-         Htft=ifelse(Htft<0,NA,Htft))%>% #~129 negs here
-  mutate(.,v22=ifelse(site==139, #this gives you volume per tree
-                  (0.21949+(0.00238 * Dbhin22 * Dbhin22 * Htft22)), #true, unthined, Units will be vol in ft3/tree, dbh in inches, ht in ft.  
-                  (0.25663+(0.00239 * Dbhin22 * Dbhin22 * Htft22)) #false, thinned 
-  ))%>%
-  mutate(.,v23=ifelse(site==139, #this gives you volume per tree
-                    (0.21949+(0.00238 * Dbhin23 * Dbhin23 * Htft23)), #true, unthined, Units will be vol in ft3/tree, dbh in inches, ht in ft.  
-                    (0.25663+(0.00239 * Dbhin23 * Dbhin23 * Htft23)) #false, thinned 
-  ))%>%
-  mutate(.,site_rate=paste0(site,"_",rt))%>%
-#  mutate(.,site_herb=paste0(site,"_",herb))%>%
-  mutate(v=v23-v22)
-
-#now get the herb and other mgt and plot scale etcdata merged in vrt:
-vrt<-vrt_plots%>% #vrt_plots is based on the gis , was from a shp remove_NC_0021 or somehintg
-  select("Name",'GID','HARV_TY','Herb','ResrcID','Acres','SUBGRID','CLAI','MAJ_ARE','GRID_AR','CLAI_GR','COMPLET','StandID','fert_rx','N_lbac','MAPlbac','MAPNlbac','Urealbac','fragArea','MAPlbs','Urealbs','MAPLAB')%>%
-  select(-Herb)%>% #note for the 26 grond plots the three columns Herb, Herbicide, and MAJ_AREA are all the same so can just keep one. MAJ_AREA is I think the most helpful one in the GIS at stand scale but that doesnt really matter for these 26 plots
-  merge(.,vrt,by.x="Name",by.y="PLOT")
-vrt<-
-  merge(vrt,vrt_area,all=T,by=c("Name"))
-#basal area math ----
-vrt <-
-  vrt%>%
-  #mutate(basalarea22w=.005454*Dbhin22^2)%>% # same thing but less clear as below
-  #mutate(basalarea23w=.005454*Dbhin23^2)%>% #  same thing but less clear as below
-  mutate(basalarea22=(pi*((Dbhin22/2)^2))/144)%>% # also note its converteing to feet^2 since all futher use needs to be in ft2
-  mutate(basalarea23=(pi*((Dbhin23/2)^2))/144)%>%# also note its converteing to feet^2 since all futher use needs to be in ft2
-  mutate(basalarea=basalarea23-basalarea22) #basal area increment per tree in ft^2
-
-
-
-#GET RID OF DAMAGED (SHRINKING) TREES from vrt-----
-  #so get rid of physical damaged trees and dead trees
-vrt<-  vrt%>%
-  mutate(.,d23=substr(d23,1,1))%>% #we wrote multiple codes for some trees' damage in 23; I always put the one that could  change height first (eg forking, top dieback, etc)
-  subset(.,!(d23%in%c("D","M","O","P","U")|d22%in%c("D","M","O","P","U")))%>% #get rid of any trees that would actually shrink - there are ~20 that had dieback, bent over etc
-  subset(.,(m23=="A"&m22=="A")) #only want trees that were alive both years (no deads in 2022 but ~7 died by 2023)
-
-#Add in lai data=====
-#Needed to fully show lai data-
-#options(max.print=1000000)
-
-#old version of lai final, delete later probably
-  #vrt_lai_final <- list(vrt_2020_DUnder, vrt_2020_SRCLAI, vrt_2021_DUnder, vrt_2021_SRCLAI,vrt_2022_DUnder, vrt_2022_SRCLAI, vrt_2023_DUnder, vrt_2023_SRCLAI)
-  #Reduce(function(x, y) merge(x, y, all=TRUE), df_list)
-
-#code for getting lai information labled and combined
-vrt_2020_DUnder <- vrt_2020_DUnder %>%
-  mutate(LAI_YEAR_TYPE= if_else(.$OBJECTID > 27, 'vrt_2020_DUnder', 'vrt_2020_DUnder'))
-vrt_2020_SRCLAI <- vrt_2020_SRCLAI %>%
-  mutate(LAI_YEAR_TYPE= if_else(.$OBJECTID > 27, 'vrt_2020_SRCLAI', 'vrt_2020_SRCLAI'))
-vrt_2021_DUnder <- vrt_2021_DUnder %>%
-  mutate(LAI_YEAR_TYPE= if_else(.$OBJECTID > 27, 'vrt_2021_DUnder', 'vrt_2021_DUnder'))
-vrt_2021_SRCLAI <- vrt_2021_SRCLAI %>%
-  mutate(LAI_YEAR_TYPE= if_else(.$OBJECTID > 27, 'vrt_2021_SRCLAI', 'vrt_2021_SRCLAI'))
-vrt_2022_DUnder <- vrt_2022_DUnder %>%
-  mutate(LAI_YEAR_TYPE= if_else(.$OBJECTID > 27, 'vrt_2022_DUnder', 'vrt_2022_DUnder'))
-vrt_2022_SRCLAI <- vrt_2022_SRCLAI %>%
-  mutate(LAI_YEAR_TYPE= if_else(.$OBJECTID > 27, 'vrt_2022_SRCLAI', 'vrt_2022_SRCLAI'))
-vrt_2023_DUnder <- vrt_2023_DUnder %>%
-  mutate(LAI_YEAR_TYPE= if_else(.$OBJECTID > 27, 'vrt_2023_DUnder', 'vrt_2023_DUnder'))
-vrt_2023_SRCLAI <- vrt_2023_SRCLAI %>%
-  mutate(LAI_YEAR_TYPE= if_else(.$OBJECTID > 27, 'vrt_2023_SRCLAI', 'vrt_2023_SRCLAI'))
-
-vrt_2020_DUnder <- vrt_2020_DUnder %>%
-  mutate(Year= if_else(.$OBJECTID > 27, '2020', '2020'))
-vrt_2020_SRCLAI <- vrt_2020_SRCLAI %>%
-  mutate(Year= if_else(.$OBJECTID > 27, '2020', '2020'))
-vrt_2021_DUnder <- vrt_2021_DUnder %>%
-  mutate(Year= if_else(.$OBJECTID > 27, '2021', '2021'))
-vrt_2021_SRCLAI <- vrt_2021_SRCLAI %>%
-  mutate(Year= if_else(.$OBJECTID > 27, '2021', '2021'))
-vrt_2022_DUnder <- vrt_2022_DUnder %>%
-  mutate(Year= if_else(.$OBJECTID > 27, '2022', '2022'))
-vrt_2022_SRCLAI <- vrt_2022_SRCLAI %>%
-  mutate(Year= if_else(.$OBJECTID > 27, '2022', '2022'))
-vrt_2023_DUnder <- vrt_2023_DUnder %>%
-  mutate(Year= if_else(.$OBJECTID > 27, '2023', '2023'))
-vrt_2023_SRCLAI <- vrt_2023_SRCLAI %>%
-  mutate(Year= if_else(.$OBJECTID > 27, '2023', '2023'))
-
-
-vrt_lai1<-merge(vrt_2020_DUnder,vrt_2020_SRCLAI,all=T,by=c("Name","OBJECTID","ZONE_CODE","COUNT","AREA","MEAN","LAI_YEAR_TYPE","Year"))
-
-vrt_lai2<-merge(vrt_lai1,vrt_2021_DUnder,all=T,by=c("Name","OBJECTID","ZONE_CODE","COUNT","AREA","MEAN","LAI_YEAR_TYPE","Year"))
-
-vrt_lai3<-merge(vrt_lai2,vrt_2021_SRCLAI,all=T,by=c("Name","OBJECTID","ZONE_CODE","COUNT","AREA","MEAN","LAI_YEAR_TYPE","Year"))
-
-vrt_lai4<-merge(vrt_lai3,vrt_2022_DUnder,all=T,by=c("Name","OBJECTID","ZONE_CODE","COUNT","AREA","MEAN","LAI_YEAR_TYPE","Year"))
-
-vrt_lai5<-merge(vrt_lai4,vrt_2022_SRCLAI,all=T,by=c("Name","OBJECTID","ZONE_CODE","COUNT","AREA","MEAN","LAI_YEAR_TYPE","Year"))
-
-vrt_lai6<-merge(vrt_lai5,vrt_2023_DUnder,all=T,by=c("Name","OBJECTID","ZONE_CODE","COUNT","AREA","MEAN","LAI_YEAR_TYPE","Year"))
-
-vrt_lai_final<-
-  merge(vrt_lai6,vrt_2023_SRCLAI,all=T,by=c("Name","OBJECTID","ZONE_CODE","COUNT","AREA","MEAN","LAI_YEAR_TYPE","Year"))%>%
-    mutate(.,LAI_YEAR_TYPE=gsub("[^SRCDU]","",LAI_YEAR_TYPE ))
-#temporary lai csv saved to same folder as this R file
-#vrt_lai_final%>%
-#  merge(.,vrt_grdplt[,c("Name","MAJ_ARE","fert_rx","N_lbac")],by="Name",all.x=T)%>%
-#  write.csv(.,file="Q:/Shared drives/FER - FPC Team/Variable Rate/Workspaces/Farmer_Michael/R/varrateNCR_LAI_delete.csv")
-
- 
-
-#and keep just the lai collumns for vrt_grdplts itself
-vrt_lai_final<-vrt_lai_final%>%
-  select(c(Name,MEAN,LAI_YEAR_TYPE,Year))%>%
-  cast(.,Name~LAI_YEAR_TYPE+Year,value="MEAN")
-
-#I don't know what this is, but it is not working.
-#vrt_lai_final<-vrt_lai_final%>%
-  #select(-c(OBJECTID,ZONE_CODE,COUNT,AREA))%>% #git rid of stuff from GIS thats not helpful or AREA which is elsewhere in vrt
-  #mutate(.,LAI_YEAR_TYPE=gsub("vrt_20","y",LAI_YEAR_TYPE))%>%
-  #cast(Name~LAI_YEAR_TYPE,value="MEAN")
-
-#Sean moved this line to the plot scale data set since it's not lai by tree: vrt<-merge(vrt,vrt_lai_final,all=T,by=c("Name"))
 
 #section for the plot scale based data: WIDE-----
 
@@ -517,35 +612,11 @@ vrt%>%pull(d23)%>%unique()
 vrt%>%subset(site==55&rt==516)%>%wex()
 
 #more raw data qc for wierdo growth -----
+#Are there typos or transcription or copying erros from the raw paper sheets?
 #read in michaels outlier csv:
-read.csv("Q:/Shared drives/FER - FPC Team/RegionWide Trials/Special Studies/Variable Rate Fertilizer Application/2022 work near Louisburg NC/Data/cruising-data-VarRate-outliers.csv",header = T)%>%
-  #mutate(.,notes=stringr("(/d+(?:/./d+)?)","FUCK",notes))%>%
-  mutate(.,Htftq=str_extract(notes, "//d+//.*//d*"))%>% #height feet already quereied by michael
-  merge(vrt,.,by=c("site","rt","plot","rep","tre"),all.x=T)%>%
-  select(c(Name,site,rt,plot,rep,tre,Htft22,Htft23,Htft,Htftq,notes,Notes22,Notes23,Htlcft22,Htlcft23,Htlcft,Dbhin22,Dbhin23,Dbhin,d22,d23,m22,m23))%>%
-  mutate(.,Htftq=as.numeric(Htftq))%>%
-  #subset(.,!abs(Htftq)>=(abs(Htft*1.1)))%>% #ok so except for three trees michael and i are looking at the same data
-  #subset(.,nchar(notes)<=10)%>%  #get rid of ones michael already checkad and made a note about
-  subset(.,(Htft<=0&(d23=="A"|d22=="A"))|(Htft>=4&(d23=="A"|d22=="A")))%>%
-  #this should be ready for shauna or someone else to look over
-  wex()
-  dim()
-  
-  vrt%>%subset(site==127&rt==620&plot==3&tre>20)%>%print()
-  vrt%>%subset(Name=="Rate-516_3-smit-113")%>%arrange(tre)%>%
-    wex()
-    tail()
-	Rate-516_3-smit-113
-)
-  
-  #ggplot(aes(x=abs(Htft),y=Htftq))+geom_point()+
-  #geom_abline(slope=1,intercept = 0)
-  #wex()
-  #PICK UP LOOKING AT THESE LAST 43 TREES
+read.csv("cruising-data-VarRate-outliers.csv",header = T)
+#no not any more; there were a small handful as of 7/2023 but these have all fixed at least for any that were easy to catch because they made growth way too high or negative growth
 
-             
-vrt%>%
-  subset()
 #more raw data stuff for plot scale vrt_grdplts: fertXherb all at once-----
 
 fud<-
@@ -1392,10 +1463,10 @@ data.frame(plot=fff[1,]%>%names(),
 
 rownames(ffff)<-NULL
 
-#sf::st_read(dsn = "Company_H/Company_H.gdb", layer = "ChemicalandFertilization")
-tgs<-sf::st_read(dsn ="Q:/Shared drives/FER - FPC Team/RegionWide Trials/RW29 Variable Rate x Herb/Workspaces/Bloszies_Sean/RW29_doodlingmap/ncvr_rwPltStdyNms.gpkg",
-                 layer = "tree_locations")
+#get the tree location stuff
 gpkg<-"Q:/Shared drives/FER - FPC Team/RegionWide Trials/RW29 Variable Rate x Herb/Workspaces/Bloszies_Sean/RW29_doodlingmap/ncvr_rwPltStdyNms.gpkg"
+tgs<-sf::st_read(dsn =gpkg,
+                 layer = "tree_locations")
 sf::st_layers(gpkg)
 
 names(tgs)<-tgs%>%names%>%gsub("tree_locations_","",.)
@@ -1423,4 +1494,4 @@ as.data.frame(tgs)%>%
   #subset(Name=="Control_1-shad-139")%>%
   unique()%>%dim()
 #yea there's like 25ish trees that have multiple locations
-#there are only like 5 or 6 plots where i was have fewer trees on the gps so that's good
+#there are only like 5 or 6 plots where i have fewer trees on the gps so that's good
