@@ -138,37 +138,54 @@ vrt23<-
     select(-c(Htft.x,Htft.y,Dbhin.x,Dbhin.y,Htlcft.x,Htlcft.y))
 #note this adds one tree from vrt_interlude and i need to eventuall figure out what that is ctrlf+aa80939sa8na93t2
 
-vrt<-
-  merge(vrt23,vrt22, by = c("plot","site","rt","rep","tre"), suffixes=c("23","22"),all=T)%>%
+vrt<- #create vrt for the first time
+  merge(mutate(vrt23,date=as.character("4/05/2023")),
+        vrt22, by = c("plot","site","rt","rep","tre"), suffixes=c("_23","_22"),all=T)%>%
     #note this adds 3 trees that were lost from 22 to 23 (ie they existed as rows in 22 but not 23 which is weird b/c this shouldnt happen)
+    rename(.,percov_22="percentage.covered")%>%
+    mutate(.,percov_22=as.numeric(gsub("%","",percov_22)))%>% #note this only comes from 2022
+    mutate(.,percov_23=NA)%>%#need to make fake 23 percov to melt/cast correctly later
+  mutate(.,d_23=substr(d_23,1,1)) #we wrote multiple codes for some trees' damage in 2023; I always put the one that could  change height first (eg forking, top dieback, etc)
+
+#1.3  make/write long version of vrt for GIS etc-----
+#don't worry it's iffed out so you can run over this into section 2.n or beyond but
+#... just want to make it clear this has a write step inside of it. This subsection should prob
+#... stay here because its the simplest place to turn vrt into long data
+#need new names
+oldnames = c("Dbhin","Htft","Htlcft","m","d","tre","Notes","plot","PLOT")
+newnames = c("DBH","HT","HTLC","MORT","DAM","TREE_NO","Comments","plt","Name")
+
+if("you want to overwrite the main rw29 clean data for GIS etc"==T){
+vrtl<-
+  vrt%>%
+      select(-c(Htft22in23,Htlcft_wrong22in22,Htft_wrong22in22,Htft22in23))%>%
+    melt.data.frame(id.vars = c( "plot", "site", "rt", "rep", "tre", "PLOT"))%>%
+    cSplit("variable","_")%>%
+    rename("variable"=variable_1,"YST"=variable_2)%>%
+    cast(.,YST+plot+site+rt+rep+tre+PLOT~variable)%>%
+ rename_at(all_of(oldnames), ~ newnames)%>%
+    mutate(.,YST=YST-22)#since started in 22 can make that YST==0
+write_xlsx(
+  x=list(cruising=vrtl),
+  path = "cruising-data-VarRate.xlsx",#this is the final merged 2022/2023/20___ tree data
+  col_names = TRUE,
+  format_headers = TRUE,
+  use_zip64 = FALSE
+)
+  }
+
+#2.1. calc'e growth, remove any negative growth whatsoever for now, and do volume calcs----
+
+names(vrt)<-gsub("_","",names(vrt)) #added underscore further up for other reasons
+vrt<-    
+  vrt%>%
+rename("Htftwrong22in22"=Htftwrong22in22, "Htlcftwrong22in22"=Htlcftwrong22in22)%>%
   mutate(.,Htft=Htft23-Htft22)%>%
   mutate(.,Htlcft=Htlcft23-Htlcft22)%>%
   mutate(.,Dbhin=Dbhin23-Dbhin22)%>%
   mutate(.,CrownLength23=Htft23-Htlcft23)%>%
   mutate(.,CrownLength22=Htft22-Htlcft22)%>%
   mutate(.,CrownLength=CrownLength23-CrownLength22)%>%
-    rename(.,percov="percentage.covered")%>%
-    mutate(.,percov=as.numeric(gsub("%","",percov)))%>% #note this only comes from 2022
-  mutate(.,d23=substr(d23,1,1)) #we wrote multiple codes for some trees' damage in 2023; I always put the one that could  change height first (eg forking, top dieback, etc)
-
-#1.3. Write back out to excel to merge onto GIS-----
-#get working directory up to this point in the .r:
-passthroughwd<-getwd()
-#Reset wd so it is wherever tabular data for rw29 lives:
-setwd("Q:/Shared drives/FER - FPC Team/RegionWide Trials/RW29 Variable Rate x Herb/NC/Tabular_Data")
-vrt%>%
-  wex()#need to probably make final vrt long (2022 and 2023 in same columns), pick up here fnas 11/6/23
-write_xlsx(
-  .,
-  path = "cruising-data-VarRate.xlsx",#this is the final merged 2022/2023/20___ tree data
-  col_names = TRUE,
-  format_headers = TRUE,
-  use_zip64 = FALSE
-)
-
-#2.1. remove any negative growth whatsoever for now, and do volume calcs----
-vrt<-    
-  vrt%>%
   mutate(.,CrownLength=ifelse(CrownLength<0,NA,CrownLength), #wow ~328 negs here
          Dbhin=ifelse(Dbhin<0,NA,Dbhin), #only 34 negs here
          Htlcft=ifelse(Htlcft<0,NA,Htlcft), #~289 negs here
@@ -184,6 +201,7 @@ vrt<-
   mutate(.,site_rate=paste0(site,"_",rt))%>%
 #  mutate(.,site_herb=paste0(site,"_",herb))%>%
   mutate(v=v23-v22)
+
 
 #now get the herb and other mgt and plot scale etcdata merged in vrt:
 vrt<-vrt_plots%>% #vrt_plots is based on the gis , was from a shp remove_NC_0021 or somehintg
@@ -920,7 +938,7 @@ summbf%>%
 
   a<-  
   vrt_grdplt %>% 
-    ggplot(aes(x=percov,y=DU_2022))+
+    ggplot(aes(x=percov22,y=DU_2022))+ #might need percov_22 (same thing just old/new names)
     geom_point(aes(color=MAJ_ARE),size=6)+
     scale_colour_manual(values=cbPalette)+
       labs(color="Weed ctrl.")+
