@@ -164,7 +164,9 @@ vrtl<-
     rename("variable"=variable_1,"YST"=variable_2)%>%
     cast(.,YST+plot+site+rt+rep+tre+PLOT~variable)%>%
  rename_at(all_of(oldnames), ~ newnames)%>%
-    mutate(.,YST=YST-22)#since started in 22 can make that YST==0
+    mutate(.,YST=YST-22)%>%#since started in 22 can make that YST==0
+mutate(Name_TREE=paste0(Name,",",TREE_NO))
+#now export it
 write_xlsx(
   x=list(cruising=vrtl),
   path = "cruising-data-VarRate.xlsx",#this is the final merged 2022/2023/20___ tree data
