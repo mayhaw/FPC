@@ -99,11 +99,12 @@
     library(foreign) #for read.dbf
     library(gdata) #for left() and right()
     library(callr)#for r()
+    library(tidyverse) #needed bc i got a message saying tidyverse needed but not installed for FPCorgSite ??? 
   #Delete eventually if XLconnect doesnt give problems... as of 6/21 it was not installing or loading into the library for some reason so i needed to do this:
   #require(devtools)
   #install_version("XLConnect", version = "1.0.2", repos = "http://cran.us.r-project.org")
   #Mend delete
-    
+
     select <- dplyr::select #otherwise it calls MASS's select by default
   
   wex<- function(x,row.names=FALSE,col.names=TRUE,...) {
@@ -151,6 +152,13 @@ wael<-function(pathstub=NULL){ #Wael Sawan is the CEO of Shell plc (Shell oil) a
   if(is.null(pathstub)){shell.exec(getwd())}
   else shell.exec(normalizePath(pathstub))
 }
+
+#temp function to save to csv and also open excel (good for stuff that doesnt paste well using wex):
+wana<-function(x){
+  write.csv(x,file="lookylookylooklydelete.csv") #might have to be careful or change this to some if/else dont overwrite shit at some point
+  wael("lookylookylooklydelete.csv")
+}
+
 #Got narm from NCmisc https://cran.r-project.org/web/packages/NCmisc/index.html  , needed it to remove na's from a list during silvprocess.r
 narm=function (X) 
 {
