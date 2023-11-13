@@ -1,4 +1,159 @@
 source("Q:/My Drive/Library/datlibmgr.R")
+#rwdb gold------
+#just define the connection to the db from R; doesn't create an object in the global env that has actual rwdb data in it
+dbpath=normalizePath(paste0(gsub("\\\\Documents","",Sys.getenv("HOME")),("\\Dropbox (FPC)\\FPC Team Folder\\Static RWDB\\RWDB static 20221017.mdb")))
+conn<-odbcDriverConnect(paste0("Driver={Microsoft Access Driver (*.mdb, *.accdb)};DBQ=",dbpath))
+#This definitely works on FRANCE pc (laptop) 11/13/23; idk why it wont on the desktop cnr grad one
+
+#not sure what this one is for
+#conn<-odbcDriverConnect(  "Driver={Microsoft Access Driver (*.mdb, *.accdb)};DBQ=C:/Users/seanb/Dropbox (FPC)/FPC Team Folder/Static RWDB/RWDB static 20221017.mdb")#20221017
+#20221017.mdb, seanb
+#conn<-odbcDriverConnect("Driver={Microsoft Access Driver (*.mdb, *.accdb)};DBQ=C:/Users/seanb/Dropbox (FPC)/FPC Team Folder/Static RWDB/RWDB static 20221017.mdb")
+#20221017.mdb, sabloszi
+#conn<-odbcDriverConnect("Driver={Microsoft Access Driver (*.mdb, *.accdb)};DBQ=C:/Users/sabloszi/Dropbox (FPC)/FPC Team Folder/Static RWDB/RWDB static 20221017.mdb")
+#20221017.mdb, seanb?
+#conn<-odbcConnect("rwdb2022")   #new error 3/16/22- went to this b/c the driver path was "unknown" somehow
+#20210423.mdb, sabloszi
+#conn<-odbcDriverConnect("Driver={Microsoft Access Driver (*.mdb, *.accdb)};DBQ=C:/Users/sabloszi/Dropbox (FPC)/FPC Team Folder/Static RWDB/RWDB static 20210423.mdb")#
+#11156 in 2021, 11336 in 2022
+#11156 -11336 =180
+#see tables thats in it
+tblnams<-sqlTables(conn, tableType = "TABLE")$TABLE_NAME
+#create indiv tables as dfs
+nut<-sqlFetch(conn, "dbo_NUT_SOIL")
+dam<-sqlFetch(conn, "dbo_DAMAGE")
+splloc<-sqlFetch(conn,"dbo_SAMPLING_LOCATION")
+tree<-sqlFetch(conn,"dbo_TREE_GROWTH")
+stdy<-sqlFetch(conn,"dbo_STUDY_INFO")
+trts<-sqlFetch(conn,"dbo_TREATMENTS")
+sqlFetch(conn,"dbo_ACTIVITY_WORKPLAN")%>%wex()
+depths<-sqlFetch(conn,"dbo_DEPTH_CODES")
+sqlFetch(conn,"dbo_COMPANY_OPERATIONS")%>%
+  subset(OPERATION_ID!=140)%>%
+  subset(.,grepl("cock",OPERATION_NAME,ignore.case=T))
+grep
+wex(sqlFetch(conn,"dbo_DOMINANT_HEIGHT_1"))
+wex(sqlFetch(conn,"dbo_APPLIED_TREATMENTS"))
+(sqlFetch(conn,"dbo_SAMPLING_LOCATION"))
+
+#get all the names of every column in every table 
+framnams1<-sapply(tblnams[1:31],function(x){names(sqlFetch(conn,x))})
+framnams2<-sapply(tblnams[32:61],function(x){names(sqlFetch(conn,x))}) #its in two parts bc it takes for ever on my computer at least
+#put whatever you want to search for in the grepl() function
+findnames<-function(x){grepl("(?i)REP", x)}
+#this shows you which tables have a column with that search in it
+lapply(framnams2,FUN = function(x){sum(findnames(x))})
+
+#nothing for spa
+#TPA
+franmams$dbo_DOMINANT_HEIGHT_1 #TPA_SUM, only one
+#PER
+franmams$dbo_STUDY_INFO #OPERATION_ID, ONLY ONE
+franmams$dbo_MICRO_TISSUE #COLLECTIONS PER YEAR, ONLY ONE
+franmams$dbo_MACRO_TISSUE #COLLECTIONS PER YEAR, ONLY ONE
+franmams$dbo_COMPANY_OPERATIONS #OPERATION_ID OPERATION NAME, ONLY 2
+#DENS
+#ONLY BULK DENSITY IN DBOPHYSSOIL
+
+
+
+grepl("(?i)regimen|promocion", c("Regimen","regimen","reximen"))
+
+
+#rw18s
+rw18old%>%pull(DATE_COLLECT)%>%unique()
+rw18old<- 
+  nut%>%
+  subset(.,STDY%in%c(184401)&DEPTH==2)%>%
+  pull(c(PLOT))%>%
+  expand.grid(5:9,.)%>%
+  mutate(.,STDY=184401,SAMPLING_LOCATION=3)%>%
+  select(STDY,Var2,Var1,SAMPLING_LOCATION)
+
+select(c(STDY,PLOT,DEPTH,DATE_COLLECT,SAMPLING_LOCATION))
+#d
+#get yst, sample #, and plots from new db
+nut%>%
+  subset(.,substr(STDY,1,2)=="18"&YST>=0)%>%
+  select(c(STDY,YST))%>%
+  melt(.,id.vars="STDY")%>%
+  cast(.,STDY~value)%>%
+  print()
+head()
+wex()
+
+#md
+rw18vt<-nut%>%
+  subset(.,substr(STDY,1,2)=="18"&YST=?????|grepl("ty_soil",Comments))
+
+
+rw18old2<-rw18old%>%select(c(STDY,YST,PLOT,DEPTH,DATE_COLLECT))
+rw18new2<-rw18new%>%select(c(STDY,YST,PLOT,DEPTH,`SAMPLE_#`))
+
+merge(rw18old2,rw18new2,by=c("STDY","YST","PLOT","DEPTH"))%>%
+  mutate(.,PLOT=as.integer(substr(PLOT,2,4)))%>%
+  select(c(STDY,PLOT))%>%unique()->fuckdb
+wex()
+
+
+pull(Comments)%>%unique()
+select(c(STDY,PLOT,DATE_COLLECT,`SAMPLE_#`,DEPTH))%>%
+  pull(DATE_COLLECT)%>%unique()
+unique()%>%
+  wex()
+#rw19s
+tree%>%
+  subset(.,STDY==195501&YST==12)%>%select(c(PLOT))%>%arrange(PLOT)%>%unique()
+
+stdy%>%subset(.,STDY==195501)%>%print()#names()->nms
+
+nut%>%subset(.,STDY==185302&YST>6)%>%wex()
+print()#names()->nms
+
+
+nms[grepl("THIN",nms)]
+
+#rw18s
+nut%>%
+  subset(.,STDY%in%c(994003,994004))%>%
+  select(c(STDY,PLOT,DATE_COLLECT,`SAMPLE_#`,DEPTH))%>%
+  unique()%>%
+  wex()
+
+
+
+dim()
+pull(STDY)%>%
+  substr(.,1,2)=="18"
+
+
+dim()
+unique()
+
+subset(.,STDY==994002|STDY==9180601|STDY==9181201|STDY==9201302)%>%
+  group_by(YST)%>%
+  summarise(range=max(`DATE_COLLECT`))
+
+20385-20432
+
+wex()
+dim()
+subset(.,year(DATE_COLLECT)==2013|(STDY==201302&year(DATE_COLLECT)!=2218)&DEPTH==8&PLOT%in%c(1520,1521,2520,2521,3520,3521))%>%
+  subset(.,(STDY>(181200)&DEPTH<7)|STDY%in%c(180601,201302))%>%
+  select(YST,STDY,DATE_COLLECT,PLOT,`SAMPLE_#`,DEPTH)%>%
+  str()
+wex()
+head()%>%
+  
+  pull(DATE_COLLECT)%>%
+  names()
+subset(.,STDY==201302&YST>8)%>%
+  wex()
+unique()%>%
+  arrange(STDY,YST)
+gdata::left(3)
+wex(stdy)
+#6	3 reps, MCP, hi and lo silviculture, 500 tpa
 #pick up----
 #just got va and v, mkae sure they make sense then go ahead and make figures for one or both and do anova
 #setwd
@@ -455,161 +610,6 @@ persp3d(zn_soil,p_soil_ppm,mnlnr, theta = 30, phi = 20,
 windows(100, 100, pointsize = 12) #opens a separate window with the size you want
 par(mar=c(4,6,4,3))
 graphics::contour(zmodel, p_soil_ppm ~ zn_soil, image = TRUE,labcex=2.8,cex.lab=2.8,cex.axis=2.8, xlabs=c("Soil P (ppm)","Soil Zn (mg kg^-1)"))   
-#rwdb gold------
-#just define the connection to the db from R; doesn't create an object in the global env that has actual rwdb data in it
-dbpath=normalizePath(paste0(gsub("\\\\Documents","",Sys.getenv("HOME")),("\\Dropbox (FPC)\\FPC Team Folder\\Static RWDB\\RWDB static 20221017.mdb")))
-conn<-odbcDriverConnect(paste0("Driver={Microsoft Access Driver (*.mdb, *.accdb)};DBQ=",dbpath))
-
-
-#not sure what this one is for
-#conn<-odbcDriverConnect(  "Driver={Microsoft Access Driver (*.mdb, *.accdb)};DBQ=C:/Users/seanb/Dropbox (FPC)/FPC Team Folder/Static RWDB/RWDB static 20221017.mdb")#20221017
-#20221017.mdb, seanb
-#conn<-odbcDriverConnect("Driver={Microsoft Access Driver (*.mdb, *.accdb)};DBQ=C:/Users/seanb/Dropbox (FPC)/FPC Team Folder/Static RWDB/RWDB static 20221017.mdb")
-#20221017.mdb, sabloszi
-#conn<-odbcDriverConnect("Driver={Microsoft Access Driver (*.mdb, *.accdb)};DBQ=C:/Users/sabloszi/Dropbox (FPC)/FPC Team Folder/Static RWDB/RWDB static 20221017.mdb")
-#20221017.mdb, seanb?
-#conn<-odbcConnect("rwdb2022")   #new error 3/16/22- went to this b/c the driver path was "unknown" somehow
-#20210423.mdb, sabloszi
-#conn<-odbcDriverConnect("Driver={Microsoft Access Driver (*.mdb, *.accdb)};DBQ=C:/Users/sabloszi/Dropbox (FPC)/FPC Team Folder/Static RWDB/RWDB static 20210423.mdb")#
-#11156 in 2021, 11336 in 2022
-#11156 -11336 =180
-#see tables thats in it
-tblnams<-sqlTables(conn, tableType = "TABLE")$TABLE_NAME
-#create indiv tables as dfs
-nut<-sqlFetch(conn, "dbo_NUT_SOIL")
-dam<-sqlFetch(conn, "dbo_DAMAGE")
-splloc<-sqlFetch(conn,"dbo_SAMPLING_LOCATION")
-tree<-sqlFetch(conn,"dbo_TREE_GROWTH")
-stdy<-sqlFetch(conn,"dbo_STUDY_INFO")
-trts<-sqlFetch(conn,"dbo_TREATMENTS")
-sqlFetch(conn,"dbo_ACTIVITY_WORKPLAN")%>%wex()
-depths<-sqlFetch(conn,"dbo_DEPTH_CODES")
-sqlFetch(conn,"dbo_COMPANY_OPERATIONS")%>%
-  subset(OPERATION_ID!=140)%>%
-  subset(.,grepl("cock",OPERATION_NAME,ignore.case=T))
-grep
-wex(sqlFetch(conn,"dbo_DOMINANT_HEIGHT_1"))
-wex(sqlFetch(conn,"dbo_APPLIED_TREATMENTS"))
-(sqlFetch(conn,"dbo_SAMPLING_LOCATION"))
-
-#get all the names of every column in every table 
-framnams1<-sapply(tblnams[1:31],function(x){names(sqlFetch(conn,x))})
-framnams2<-sapply(tblnams[32:61],function(x){names(sqlFetch(conn,x))}) #its in two parts bc it takes for ever on my computer at least
-#put whatever you want to search for in the grepl() function
-findnames<-function(x){grepl("(?i)REP", x)}
-#this shows you which tables have a column with that search in it
-lapply(framnams2,FUN = function(x){sum(findnames(x))})
-
-#nothing for spa
-#TPA
-franmams$dbo_DOMINANT_HEIGHT_1 #TPA_SUM, only one
-#PER
-franmams$dbo_STUDY_INFO #OPERATION_ID, ONLY ONE
-franmams$dbo_MICRO_TISSUE #COLLECTIONS PER YEAR, ONLY ONE
-franmams$dbo_MACRO_TISSUE #COLLECTIONS PER YEAR, ONLY ONE
-franmams$dbo_COMPANY_OPERATIONS #OPERATION_ID OPERATION NAME, ONLY 2
-#DENS
-#ONLY BULK DENSITY IN DBOPHYSSOIL
-
-
-
-grepl("(?i)regimen|promocion", c("Regimen","regimen","reximen"))
-
-
-#rw18s
-rw18old%>%pull(DATE_COLLECT)%>%unique()
-rw18old<- 
-  nut%>%
-  subset(.,STDY%in%c(184401)&DEPTH==2)%>%
-  pull(c(PLOT))%>%
-  expand.grid(5:9,.)%>%
-  mutate(.,STDY=184401,SAMPLING_LOCATION=3)%>%
-  select(STDY,Var2,Var1,SAMPLING_LOCATION)
-
-select(c(STDY,PLOT,DEPTH,DATE_COLLECT,SAMPLING_LOCATION))
-#d
-#get yst, sample #, and plots from new db
-nut%>%
-  subset(.,substr(STDY,1,2)=="18"&YST>=0)%>%
-  select(c(STDY,YST))%>%
-  melt(.,id.vars="STDY")%>%
-  cast(.,STDY~value)%>%
-  print()
-head()
-wex()
-
-#md
-rw18vt<-nut%>%
-  subset(.,substr(STDY,1,2)=="18"&YST=?????|grepl("ty_soil",Comments))
-
-
-rw18old2<-rw18old%>%select(c(STDY,YST,PLOT,DEPTH,DATE_COLLECT))
-rw18new2<-rw18new%>%select(c(STDY,YST,PLOT,DEPTH,`SAMPLE_#`))
-
-merge(rw18old2,rw18new2,by=c("STDY","YST","PLOT","DEPTH"))%>%
-  mutate(.,PLOT=as.integer(substr(PLOT,2,4)))%>%
-  select(c(STDY,PLOT))%>%unique()->fuckdb
-wex()
-
-
-pull(Comments)%>%unique()
-select(c(STDY,PLOT,DATE_COLLECT,`SAMPLE_#`,DEPTH))%>%
-  pull(DATE_COLLECT)%>%unique()
-unique()%>%
-  wex()
-#rw19s
-tree%>%
-  subset(.,STDY==195501&YST==12)%>%select(c(PLOT))%>%arrange(PLOT)%>%unique()
-
-stdy%>%subset(.,STDY==195501)%>%print()#names()->nms
-
-nut%>%subset(.,STDY==185302&YST>6)%>%wex()
-print()#names()->nms
-
-
-nms[grepl("THIN",nms)]
-
-#rw18s
-nut%>%
-  subset(.,STDY%in%c(994003,994004))%>%
-  select(c(STDY,PLOT,DATE_COLLECT,`SAMPLE_#`,DEPTH))%>%
-  unique()%>%
-  wex()
-
-
-
-dim()
-pull(STDY)%>%
-  substr(.,1,2)=="18"
-
-
-dim()
-unique()
-
-subset(.,STDY==994002|STDY==9180601|STDY==9181201|STDY==9201302)%>%
-  group_by(YST)%>%
-  summarise(range=max(`DATE_COLLECT`))
-
-20385-20432
-
-wex()
-dim()
-subset(.,year(DATE_COLLECT)==2013|(STDY==201302&year(DATE_COLLECT)!=2218)&DEPTH==8&PLOT%in%c(1520,1521,2520,2521,3520,3521))%>%
-  subset(.,(STDY>(181200)&DEPTH<7)|STDY%in%c(180601,201302))%>%
-  select(YST,STDY,DATE_COLLECT,PLOT,`SAMPLE_#`,DEPTH)%>%
-  str()
-wex()
-head()%>%
-  
-  pull(DATE_COLLECT)%>%
-  names()
-subset(.,STDY==201302&YST>8)%>%
-  wex()
-unique()%>%
-  arrange(STDY,YST)
-gdata::left(3)
-wex(stdy)
-#6	3 reps, MCP, hi and lo silviculture, 500 tpa
 #all possible combos of Funga docket soils-----
 
 #Here is a list of samples that still need sending to Funga as of 10/25/2022 ish:
@@ -2253,12 +2253,6 @@ head()
 names()
 
 
-#numbers 1-10 letters a-l:-----
-outer(c(letters[1:12]),c(1:10),FUN=function(x,y){paste0(x,y)})%>%
-  t()%>%
-  melt()%>%
-  wex()
-head()
 #merge sample numbers for funga 180601 18xxxxx .... with sample nubmers for funga study .... 3.2-----
 f1806<-read.csv("C:/Users/sabloszi/Dropbox (FPC)/FPC Team Folder/RegionWide Trials/Special Studies/Funga fungal microbiome/sample numbers for FUnga samples 180601 181201 184501 201301 201302-1.csv",header=T)%>%
   subset(.,DEPTH=="0-15")
@@ -2319,8 +2313,7 @@ ff%>%head()
 
 merge(mr,ff,by=c("STDY","PLOT"),all.y=F,all.x=T)%>%wex()
 
-#merge-----
-
+#merge funga sample numbers-----
 sids<-read.csv("G:/My Drive/Studies/FPC/SharedFolderSean/FPC Team Folder2/RegionWide Trials/Special Studies/Funga fungal microbiome/sample numbers for Funga forest floor samples delete_need_forest-floor_sample-numbers.csv",header=T)
 big<-read.csv("C:/Users/sabloszi/Dropbox (FPC)/FPC Team Folder/RegionWide Trials/Special Studies/Funga fungal microbiome/Funga FPC Site Summary 6-22-2022_Plotnumbers.csv",header=T)
 str(sids)
@@ -2451,6 +2444,29 @@ outer(c(1000,2000,3000,4000),c(0,  361,  360,  481,  480,  721,  720,  108),FUN 
   wex()
 
 
+
+#google sheets read inn=-----
+#STUDY	PLOT	Tree	Ht,  ft.in	HTLC,ft.in	dbh,mm	RCD,mm	Mortality	Damage code	 dam	row end?	Notes	date																	
+#fuck<-gsheet2tbl('https://docs.google.com/spreadsheets/d/1foGV8kUzgDiTsx0coouDvG0TWm7eks7DYMZt0Gx-e_4/edit#gid=1283512166')
+link_to_Gsheets <- "https://docs.google.com/spreadsheets/d/1foGV8kUzgDiTsx0coouDvG0TWm7eks7DYMZt0Gx-e_4/edit#gid=1283512166"
+
+datadbh282201<-read_sheet(link_to_Gsheets, sheet="282201")
+datadbh281303<-read_sheet(link_to_Gsheets, sheet="281303")
+
+#see trees per plot
+#datadbh281303%>%
+datadbh282201%>%
+  as.data.table()%>%
+  dplyr::select(c(PLOT,dbh))%>% #select is comgin from somewhere else if not explicit
+  melt(.,id.vars="PLOT")%>%
+  cast(PLOT~variable)%>%
+  print
+
+is.num
+datadbh <-  link_to_Gsheets %>%
+  sheet_names() %>% #get names
+  set_names()  #give names
+#%>%  map_df(read_sheet, ss = link_to_Gsheets, .id = "Cut") #if you want to combine sheets (usually you wouldnt unless they are essentially the same ; this is like rbindrows more or less)
 
 #ocr------
 #
@@ -2607,1187 +2623,6 @@ v2023trees%>%
 #... there is a rmse of ~8" vs about 18" for my in-the-pines model
 #... thsi is the RSE in the summary(fit) and is the square root of 
 #... the mean square error
-
-#ncvarrate cruising-data------
-
-
-#delete eventually- this is the all meetings table-----
-text='
-<table id="tablepress-2" class="tablepress tablepress-id-2 dataTable no-footer">
-<thead>
-<tr class="row-1 odd"><th class="column-1 sorting_disabled" rowspan="1" colspan="1" style="width: 40.4px;"><strong>Year</strong></th><th class="column-2 sorting_disabled" rowspan="1" colspan="1" style="width: 69.8px;"><strong>Date</strong></th><th class="column-3 sorting_disabled" rowspan="1" colspan="1" style="width: 283.95px;"><strong>FPC Meeting</strong></th><th class="column-4 sorting_disabled" rowspan="1" colspan="1" style="width: 145.85px;"><strong>Location</strong></th></tr>
-</thead>
-<tbody class="row-hover">
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-<tr class="row-2 even">
-	<td class="column-1">2022</td><td class="column-2">December 14</td><td class="column-3">Forest Management and Carbon Markets: Recent Developments and Key Knowledge Gaps - Justin Baker (NCSU) and Greg Latta (U of Idaho)<br>
-<br>
-<a href="https://www.dropbox.com/s/lk09eg17he53lnx/video1352293942.mp4?dl=0" target="_blank" rel="noopener noreferrer">Video Recording - presentations begin about minute 10</a><br>
-<br>
-Powerpoint slides will be available soon</td><td class="column-4">Webinar, from Virginia Tech, Blacksburg, VA</td>
-</tr><tr class="row-3 odd">
-	<td class="column-1">2022</td><td class="column-2">December 1, 6, 13</td><td class="column-3"><a href="https://forestproductivitycoop.net/2022-latin-american-annual-meeting/" target="_blank" rel="noopener noreferrer">2022 Latin American Annual Meeting</a></td><td class="column-4">Online</td>
-</tr><tr class="row-4 even">
-	<td class="column-1">2022</td><td class="column-2">November 15-17</td><td class="column-3"><a href="https://forestproductivitycoop.net/2022-contact-meeting/" target="_blank" rel="noopener noreferrer">2022 US Contact Meeting</a></td><td class="column-4">Leesville, LA</td>
-</tr><tr class="row-5 odd">
-	<td class="column-1">2022</td><td class="column-2">August 9-10</td><td class="column-3"><a href="https://forestproductivitycoop.net/2022-annual-meeting/" target="_blank" rel="noopener noreferrer">2022 US Annual Meeting</a></td><td class="column-4">Raleigh, NC</td>
-</tr><tr class="row-6 even">
-	<td class="column-1">2022</td><td class="column-2">April 29</td><td class="column-3">Optimizing pine plantation management via geospatial data science and forest soil classification - Chris Cohrs PhD. defense<br>
-<a href="https://www.dropbox.com/sh/mit2y893r20k84f/AABSHTlkggybR7HcU9rR0ScVa?dl=0" target="_blank" rel="noopener noreferrer">Video Recording</a><br>
-<a href="https://forestproductivitycoop.net/wp-content/uploads/2022/05/CWCohrs_Defense_29Apr2022.pdf" target="_blank" rel="noopener noreferrer">Powerpoint slides</a></td><td class="column-4">Graduate student defense/ webinar, from NCSU, Raleigh, NC</td>
-</tr><tr class="row-7 odd">
-	<td class="column-1">2021</td><td class="column-2">Year end summary</td><td class="column-3"><a href="https://forestproductivitycoop.net/wp-content/uploads/2021/12/CAFS-Annual-Report-Year-2_opt.pdf" target="_blank" rel="noopener noreferrer">2021 Center for Advanced Forest Systems Progress Report</a></td><td class="column-4"></td>
-</tr><tr class="row-8 even">
-	<td class="column-1">2021</td><td class="column-2">October19-20</td><td class="column-3"><a href="https://forestproductivitycoop.net/2021-contact-meeting/" target="_blank" rel="noopener noreferrer">2021 US Contact Meeting</a></td><td class="column-4">Lynchburg, VA</td>
-</tr><tr class="row-9 odd">
-	<td class="column-1">2021</td><td class="column-2">August 10, 12, 17, and 19</td><td class="column-3"><a href="https://forestproductivitycoop.net/2021-annual-meeting/" target="_blank" rel="noopener noreferrer">2021 US Annual Meeting</a></td><td class="column-4">Lunch and Learn Online</td>
-</tr><tr class="row-10 even">
-	<td class="column-1">2021</td><td class="column-2">May 4-25</td><td class="column-3"><a href="https://forestproductivitycoop.net/2021-fpc-latin-american-contact-meeting/" target="_blank" rel="noopener noreferrer">2021 Latin American Contact Meeting</a></td><td class="column-4">Online</td>
-</tr><tr class="row-11 odd">
-	<td class="column-1">2020</td><td class="column-2">December 7-15</td><td class="column-3"><a href="https://forestproductivitycoop.net/2020-strategic-planning/" target="_blank" rel="noopener noreferrer">2020 Strategic Planning Meeting</a></td><td class="column-4">Strategic Planning</td>
-</tr><tr class="row-12 even">
-	<td class="column-1">2020</td><td class="column-2">August 4-September 1</td><td class="column-3"><a href="https://forestproductivitycoop.net/2020-us-annual-meeting/" target="_blank" rel="noopener noreferrer">2020 US Annual Meeting</a></td><td class="column-4">Lunch and Learn Online</td>
-</tr><tr class="row-13 odd">
-	<td class="column-1">2020</td><td class="column-2">May 28</td><td class="column-3">Sentinel 2 Leaf Area Estimation in the Southeastern US - Chris Cohrs<br>
-<a href="https://youtu.be/0io2Wt5k1C4" target="_blank" rel="noopener noreferrer">Youtube Video Recording</a><br>
-<a href="https://forestproductivitycoop.net/wp-content/uploads/2020/06/Cohrs-S2LAI-FPC-Webinar-28-May-2020.pdf" target="_blank" rel="noopener noreferrer">Powerpoint slides</a></td><td class="column-4">Webinar, from NCSU, Raleigh, NC</td>
-</tr><tr class="row-14 even">
-	<td class="column-1">2019</td><td class="column-2">November 20-21</td><td class="column-3"><a href="https://forestproductivitycoop.net/2019-us-pine-contact-meeting/" target="_blank" rel="noopener noreferrer">2019 US Pine Contact Meeting</a></td><td class="column-4">Mt. Gilead, NC</td>
-</tr><tr class="row-15 odd">
-	<td class="column-1">2019</td><td class="column-2">November 11</td><td class="column-3">An introduction to the new Landsat 7 ETM+ and Landsat 8 Leaf Area<br>
-Index estimation tool: R package walkthrough - Matthew Sumanll<br>
-<a href="https://www.dropbox.com/s/xw2krh3jf3t6ykx/Webinar%202_Sumnall%20Landsat%207%20and%208%20Tool.mp4?dl=0" target="_blank" rel="noopener noreferrer">Video recording</a><br>
-<a href="https://www.dropbox.com/sh/8dypcwx7o6ghh2r/AAAgooJRjU0ScR8f5A7AyeEQa?dl=0" target="_blank" rel="noopener noreferrer">Powerpoint slides and R tools</a></td><td class="column-4">Webinar, from Virginia Tech, Blacksburg, VA</td>
-</tr><tr class="row-16 even">
-	<td class="column-1">2019</td><td class="column-2">October 21-24</td><td class="column-3"><a href="https://forestproductivitycoop.net/?page_id=13306" target="_blank" rel="noopener noreferrer">2019 Contact Meeting in Argentina</a></td><td class="column-4">Posadas, Argentina</td>
-</tr><tr class="row-17 odd">
-	<td class="column-1">2019</td><td class="column-2">August 6-8</td><td class="column-3"><a href="https://forestproductivitycoop.net/2019-us-annual-meeting/" target="_blank" rel="noopener noreferrer">2019 US Annual Meeting</a></td><td class="column-4">Savannah, GA</td>
-</tr><tr class="row-18 even">
-	<td class="column-1">2019</td><td class="column-2">May 31</td><td class="column-3"><a href="https://forestproductivitycoop.net/2019-may-webinar/" target="_blank" rel="noopener noreferrer">Recent Developments in Remote Sensing</a></td><td class="column-4">Webinar, from Virginia Tech, Blacksburg, VA</td>
-</tr><tr class="row-19 odd">
-	<td class="column-1">2018</td><td class="column-2">November 6-7</td><td class="column-3"><a href="https://forestproductivitycoop.net/2018-us-pine-contact-meeting/" target="_blank" rel="noopener noreferrer">2018 US Pine Contact Meeting</a></td><td class="column-4">Yulee, FL</td>
-</tr><tr class="row-20 even">
-	<td class="column-1">2018</td><td class="column-2">August 6-9</td><td class="column-3"><a href="http://forestproductivitycoop.net/2018-us-annual-meeting/" target="_blank" rel="noopener noreferrer">2018 US Annual Meeting</a></td><td class="column-4">Raleigh, NC</td>
-</tr><tr class="row-21 odd">
-	<td class="column-1">2017</td><td class="column-2">October 17-19</td><td class="column-3"><a href="http://forestproductivitycoop.net/2017-la-annual-meeting/">2017 LA Annual Meeting</a></td><td class="column-4">Concepción, Chile</td>
-</tr><tr class="row-22 even">
-	<td class="column-1">2017</td><td class="column-2">August 7-10</td><td class="column-3"><a href="http://forestproductivitycoop.net/2017-us-annual-meeting/" target="_blank" rel="noopener noreferrer">2017 US Annual Meeting</a></td><td class="column-4">Wilmington, NC</td>
-</tr><tr class="row-23 odd">
-	<td class="column-1">2017</td><td class="column-2">July 26</td><td class="column-3"><a href="http://forestproductivitycoop.net/2017-contact-meeting-chile-2/" target="_blank" rel="noopener noreferrer">2017 Contact Meeting in Chile 2</a></td><td class="column-4">Chile</td>
-</tr><tr class="row-24 even">
-	<td class="column-1">2017</td><td class="column-2">July 5</td><td class="column-3"><a href="http://forestproductivitycoop.net/2017-contact-meeting---chile-1/" target="_blank" rel="noopener noreferrer">2017 Contact Meeting in Chile 1</a></td><td class="column-4">Chile</td>
-</tr><tr class="row-25 odd">
-	<td class="column-1">2016</td><td class="column-2">October 4-6</td><td class="column-3"><a href="http://forestproductivitycoop.net/2016-annual-meeting/" target="_blank" rel="noopener noreferrer">2016 Annual Meeting</a></td><td class="column-4">Blacksburg, VA</td>
-</tr><tr class="row-26 even">
-	<td class="column-1">2016</td><td class="column-2">July 12-14</td><td class="column-3"><a href="http://forestproductivitycoop.net/2016-july-12-14-la-pine-and-eucalyptus-wg-meeting/" target="_blank" rel="noopener noreferrer">2016 LA Pine and Eucalyptus WG Meeting</a></td><td class="column-4">Cali, Colombia</td>
-</tr><tr class="row-27 odd">
-	<td class="column-1">2016</td><td class="column-2">May 24-26</td><td class="column-3"><a href="http://forestproductivitycoop.net/2016-may-24-26-us-pine-wg-meeting/" target="_blank" rel="noopener noreferrer">2016 US Pine WG Meeting</a></td><td class="column-4">Brookeland, TX</td>
-</tr><tr class="row-28 even">
-	<td class="column-1">2016</td><td class="column-2">March 31-April 1</td><td class="column-3"><a href="http://forestproductivitycoop.net/2016-march-31-april-1-us-eucalyptus-wg-meeting/" target="_blank" rel="noopener noreferrer">2016 US Eucalyptus WG Meeting</a></td><td class="column-4">Quincy, FL</td>
-</tr><tr class="row-29 odd">
-	<td class="column-1">2015</td><td class="column-2">November 20</td><td class="column-3"><a href="http://forestproductivitycoop.net/2015-november-webex-meeting/" target="_blank" rel="noopener noreferrer">2015 November WEBEX Meeting</a></td><td class="column-4">Online</td>
-</tr><tr class="row-30 even">
-	<td class="column-1">2015</td><td class="column-2">September 29-30</td><td class="column-3"><a href="http://forestproductivitycoop.net/2015-annual-meeting/" target="_blank" rel="noopener noreferrer">2015 Annual Meeting</a></td><td class="column-4">Chapel Hill, NC</td>
-</tr><tr class="row-31 odd">
-	<td class="column-1">2015</td><td class="column-2">June 22-27</td><td class="column-3"><a href="http://forestproductivitycoop.net/la-pine-and-eucalyptus-working-group-meeting-june-22-27-2015/" target="_blank" rel="noopener noreferrer">LA Pine and Eucalyptus WG Meeting</a></td><td class="column-4">Argentina and Brazil</td>
-</tr><tr class="row-32 even">
-	<td class="column-1">2015</td><td class="column-2">May 12-14</td><td class="column-3"><a href="http://forestproductivitycoop.net/us-pine-working-group-meeting-may-12-14-2015/" target="_blank" rel="noopener noreferrer">US Pine WG Meeting</a></td><td class="column-4">Florence, SC</td>
-</tr><tr class="row-33 odd">
-	<td class="column-1">2015</td><td class="column-2">March 9 - 10</td><td class="column-3"><a href="http://forestproductivitycoop.net/us-eucalyptus-wg-meeting-march-9-10-2015/" target="_blank" rel="noopener noreferrer">US Eucalyptus WG Meeting</a></td><td class="column-4">Ravenel, SC</td>
-</tr><tr class="row-34 even">
-	<td class="column-1">2014</td><td class="column-2">October 14 - 16</td><td class="column-3"><a href="http://forestproductivitycoop.net/annual-meeting-2014/">Annual Meeting</a></td><td class="column-4">Atlanta, GA</td>
-</tr><tr class="row-35 odd">
-	<td class="column-1">2014</td><td class="column-2">August 3 - 5</td><td class="column-3"><a href="http://forestproductivitycoop.net/la-eucalyptus-wg-meeting-august-2014/" target="_blank" rel="noopener noreferrer">Latin America Eucalyptus Working Group - Research Review and Strategic Planning Meeting</a></td><td class="column-4">Tres Lagoas, Mato Grosso do Sul, Brazil</td>
-</tr><tr class="row-36 even">
-	<td class="column-1">2014</td><td class="column-2">June 3 - 5</td><td class="column-3"><a href="http://forestproductivitycoop.net/us-pine-meetings/" target="_blank" rel="noopener noreferrer">US Pine Working Group Research Review &amp; Contact Meeting</a></td><td class="column-4">Tuscaloosa, AL</td>
-</tr><tr class="row-37 odd">
-	<td class="column-1">2014</td><td class="column-2">February 10 - 11</td><td class="column-3"><a href="http://forestproductivitycoop.net/us-eucalyptus-working-group-meeting-february-2014/" target="_blank" rel="noopener noreferrer">US Eucalyptus WG</a></td><td class="column-4">Raleigh, NC</td>
-</tr><tr class="row-38 even">
-	<td class="column-1">2014</td><td class="column-2">January 13 - 15</td><td class="column-3">US Pine WG</td><td class="column-4">New Bern, NC</td>
-</tr><tr class="row-39 odd">
-	<td class="column-1">2013</td><td class="column-2">October 7 - 9</td><td class="column-3"><a href="http://forestproductivitycoop.net/publications/fpc-presentations/2013-october-7-9-annual-meeting-atlanta-ga/">Annual Meeting</a></td><td class="column-4">Atlanta, GA</td>
-</tr><tr class="row-40 even">
-	<td class="column-1">2013</td><td class="column-2">June 3 - 7</td><td class="column-3"><a href="http://forestproductivitycoop.net/publications/fpc-presentations/2013-contact-meeting-in-north-america/" target="_blank" rel="noopener noreferrer">Contact Meeting</a></td><td class="column-4">Blacksburg, VA</td>
-</tr><tr class="row-41 odd">
-	<td class="column-1">2012</td><td class="column-2">November 15</td><td class="column-3">Eucalyptus Special Project</td><td class="column-4">Raleigh, NC</td>
-</tr><tr class="row-42 even">
-	<td class="column-1">2012</td><td class="column-2">October 15 - 18</td><td class="column-3"><a href="http://forestproductivitycoop.net/publications/fpc-presentations/2012-annual-advisory-council-meeting/" target="_blank" rel="noopener noreferrer">Annual Advisory Council Meeting</a></td><td class="column-4">Chapel Hill, NC</td>
-</tr><tr class="row-43 odd">
-	<td class="column-1">2012</td><td class="column-2">June 12 - 14</td><td class="column-3"><a href="http://forestproductivitycoop.net/publications/fpc-presentations/june-12-14-contact-meeting-pineville-la/" target="_blank" rel="noopener noreferrer">2012 Contact Meeting</a></td><td class="column-4">Pineville, LA</td>
-</tr><tr class="row-44 even">
-	<td class="column-1">2012</td><td class="column-2">May 2012</td><td class="column-3"><a href="http://forestproductivitycoop.net/publications/fpc-presentations/2012-latin-america-contact-meeting-agenda/" target="_blank" rel="noopener noreferrer">Latin America Contact Meeting</a></td><td class="column-4">Concepcion, Chile</td>
-</tr><tr class="row-45 odd">
-	<td class="column-1">2011</td><td class="column-2">October 11 - 13</td><td class="column-3"><a href="http://forestproductivitycoop.net/publications/fpc-presentations/2011-annual-advisory-council-meeting/" target="_blank" rel="noopener noreferrer">Annual Advisory Council Meeting</a></td><td class="column-4">Blacksburg, VA</td>
-</tr><tr class="row-46 even">
-	<td class="column-1">2011</td><td class="column-2">June 8 - 9</td><td class="column-3"><a class="download-link" title="" href="https://forestproductivitycoop.net/fpcdata/2011contactmeeting-pdf/?tmstv=1682057812" rel="nofollow">
-	2011ContactMeeting.pdf</a></td><td class="column-4">Waycross, GA</td>
-</tr><tr class="row-47 odd">
-	<td class="column-1">2011</td><td class="column-2">June 6 - 7</td><td class="column-3"><a class="download-link" title="" href="https://forestproductivitycoop.net/fpcdata/2011-workshop-all-pdf/?tmstv=1682057812" rel="nofollow">
-	2011-Workshop-all.pdf</a></td><td class="column-4">Jacksonville, FL</td>
-</tr><tr class="row-48 even">
-	<td class="column-1">2011</td><td class="column-2">March 9</td><td class="column-3">RW24 Eucalyptus Cold Tolerance Project - 3rd Mtg</td><td class="column-4">Raleigh, NC</td>
-</tr><tr class="row-49 odd">
-	<td class="column-1">2011</td><td class="column-2">March 8</td><td class="column-3"><a href="http://forestproductivitycoop.net/publications/fpc-presentations/2011-planning-meeting/" target="_blank" rel="noopener noreferrer">Planning Meeting to Discuss RW 18 and RW 19 Studies</a></td><td class="column-4">Raleigh, NC</td>
-</tr><tr class="row-50 even">
-	<td class="column-1">2010</td><td class="column-2">November 14 - 19</td><td class="column-3"><a class="download-link" title="" href="https://forestproductivitycoop.net/fpcdata/2010_cm_a_u_documentos_campo_eng-pdf/?tmstv=1682057812" rel="nofollow">
-	2010_CM_A_U_documentos_campo_eng.pdf</a></td><td class="column-4">Argentina, Uruguay</td>
-</tr><tr class="row-51 odd">
-	<td class="column-1">2010</td><td class="column-2">October 26 - 28</td><td class="column-3"><a href="http://forestproductivitycoop.net/publications/fpc-presentations/2010-advisory-council-meeting/" target="_blank" rel="noopener noreferrer">Advisory Council Meeting</a></td><td class="column-4">New Bern, NC</td>
-</tr><tr class="row-52 even">
-	<td class="column-1">2009</td><td class="column-2">October 6 - 8</td><td class="column-3"><a href="http://forestproductivitycoop.net/publications/fpc-presentations/2009-advisory-council-meeting/" target="_blank" rel="noopener noreferrer">Annual Advisory Council Meeting</a></td><td class="column-4">Chapel Hill, NC</td>
-</tr><tr class="row-53 odd">
-	<td class="column-1">2009</td><td class="column-2">June 1 - 2</td><td class="column-3"><a class="download-link" title="" href="https://forestproductivitycoop.net/fpcdata/2009contactmeeting-pdf/?tmstv=1682057812" rel="nofollow">
-	2009ContactMeeting.pdf</a></td><td class="column-4"></td>
-</tr><tr class="row-54 even">
-	<td class="column-1">2008</td><td class="column-2">September 29 - October 1</td><td class="column-3"><a href="http://forestproductivitycoop.net/publications/fpc-presentations/2008-advisory-council-meeting/" target="_blank" rel="noopener noreferrer">Annual Advisory Council Meeting</a></td><td class="column-4">Roanoke, VA</td>
-</tr><tr class="row-55 odd">
-	<td class="column-1">2008</td><td class="column-2">June 2 - 4</td><td class="column-3"><a href="http://forestproductivitycoop.net/publications/fpc-presentations/2008-silviculture-relationships-workshop/" target="_blank" rel="noopener noreferrer">Forest Production - Silviculture Relationships Workshop</a></td><td class="column-4"></td>
-</tr><tr class="row-56 even">
-	<td class="column-1">2008</td><td class="column-2">June 5 - 6</td><td class="column-3"><a class="download-link" title="" href="https://forestproductivitycoop.net/fpcdata/2008contactmeeting-pdf/?tmstv=1682057812" rel="nofollow">
-	2008ContactMeeting.pdf</a></td><td class="column-4"></td>
-</tr><tr class="row-57 odd">
-	<td class="column-1">2007</td><td class="column-2">October 15 - 17</td><td class="column-3"><a href="http://forestproductivitycoop.net/publications/fpc-presentations/2007-advisory-council/" target="_blank" rel="noopener noreferrer">Annual Advisory Council Meeting</a></td><td class="column-4">Blacksburg, VA</td>
-</tr><tr class="row-58 even">
-	<td class="column-1">2007</td><td class="column-2">June 6</td><td class="column-3"><a class="download-link" title="" href="https://forestproductivitycoop.net/fpcdata/2007contactmeeting-pdf/?tmstv=1682057812" rel="nofollow">
-	2007ContactMeeting.pdf</a></td><td class="column-4">Tuscaloosa, AL</td>
-</tr><tr class="row-59 odd">
-	<td class="column-1">2006</td><td class="column-2">October 3 - 4</td><td class="column-3"><a href="http://forestproductivitycoop.net/publications/fpc-presentations/2006-advisory-council/" target="_blank" rel="noopener noreferrer">Annual Advisory Council Meeting</a></td><td class="column-4">Chapel Hill, NC</td>
-</tr><tr class="row-60 even">
-	<td class="column-1">2005</td><td class="column-2">October 11 - 13</td><td class="column-3"><a href="http://forestproductivitycoop.net/publications/fpc-presentations/2005-advisory-council/" target="_blank" rel="noopener noreferrer">Annual Advisory Council Meeting</a></td><td class="column-4">Blacksburg VA</td>
-</tr><tr class="row-61 odd">
-	<td class="column-1">2005</td><td class="column-2">June 6 - 8</td><td class="column-3"><a href="http://forestproductivitycoop.net/publications/fpc-presentations/2005-contact-meeting/" target="_blank" rel="noopener noreferrer">Contact Meeting Workshop Presentations</a></td><td class="column-4">Jacksonville, FL</td>
-</tr><tr class="row-62 even">
-	<td class="column-1">2004</td><td class="column-2">September 21 - 22</td><td class="column-3"><a href="http://forestproductivitycoop.net/publications/fpc-presentations/2004-advisory-council/" target="_blank" rel="noopener noreferrer">Annual Advisory Council Meeting</a></td><td class="column-4"></td>
-</tr></tbody>
-</table>
-'
-#delete eventually- this is the 2020 minimal table-----
-text= #this is the 2020 annual meeting as of 4/20/23
-  '
-<table id="tablepress-168" class="tablepress tablepress-id-168 dataTable no-footer">
-<caption style="caption-side: bottom; text-align: left; border: medium none; background: none; margin: 0px; padding: 0px; --darkreader-inline-border-top: currentcolor; --darkreader-inline-border-right: currentcolor; --darkreader-inline-border-bottom: currentcolor; --darkreader-inline-border-left: currentcolor; --darkreader-inline-bgcolor: rgba(0, 0, 0, 0); --darkreader-inline-bgimage: none;" data-darkreader-inline-border-top="" data-darkreader-inline-border-right="" data-darkreader-inline-border-bottom="" data-darkreader-inline-border-left="" data-darkreader-inline-bgcolor="" data-darkreader-inline-bgimage=""><a href="https://forestproductivitycoop.net/wp-admin/admin.php?page=tablepress&amp;action=edit&amp;table_id=168" rel="nofollow">Edit</a></caption>
-<thead>
-<tr class="row-1 odd"><th class="column-1 sorting_disabled" rowspan="1" colspan="1" style="width: 67.45px;">Date</th><th class="column-2 sorting_disabled" rowspan="1" colspan="1" style="width: 54.4333px;">Time</th><th class="column-3 sorting_disabled" rowspan="1" colspan="1" style="width: 304.583px;">Presentation</th><th class="column-4 sorting_disabled" rowspan="1" colspan="1" style="width: 113.533px;">Speaker</th></tr>
-</thead>
-<tbody class="row-hover">
-<tr class="row-2 even">
-	<td class="column-1">Tuesday, August 4 -<br>
-Tuesday, September 1</td><td class="column-2"></td><td class="column-3"><a href="https://forestproductivitycoop.net/wp-content/uploads/2020/06/FPC-Annual-Meeting-Online-Series-Agenda-2020_with-links.pdf" target="_blank" rel="noopener noreferrer">2020 FPC US Annual Meeting Agenda</a></td><td class="column-4"></td>
-</tr><tr class="row-3 odd">
-	<td class="column-1">Tuesday Aug 4</td><td class="column-2">12:00-1:00</td><td class="column-3"><a href="https://forestproductivitycoop.net/wp-content/uploads/2020/08/Cook_State-of-the-FPC-AM-2020.pdf" target="_blank" rel="noopener noreferrer">State of the FPC, overview of meeting structure, preview of upcoming presentations (pdf)</a><br>
-<br>
-<a href="https://youtu.be/XA60np_O_Bo" target="_blank" rel="noopener noreferrer">Presentation recording</a><br>
-</td><td class="column-4">Rachel Cook</td>
-</tr><tr class="row-4 even">
-	<td class="column-1">Tuesday Aug 4</td><td class="column-2">1:00-1:30</td><td class="column-3">Business Meeting - Advisory Council members only</td><td class="column-4"></td>
-</tr><tr class="row-5 odd">
-	<td class="column-1">Thursday Aug 6</td><td class="column-2">12:00-12:30</td><td class="column-3">Background on FPC Soil Management System - Watch or review this before Thursday at 12:00 if you are unfamiliar with the FPC soil system<br>
-<a href="https://forestproductivitycoop.net/wp-content/uploads/2020/08/Cook_FPC-Soils-Background_Recorded-only.pdf" target="_blank" rel="noopener noreferrer">PDF</a><br>
-<a href="https://youtu.be/vOn8J0rGMBM" target="_blank" rel="noopener noreferrer">Video</a><br>
-<br>
-<a href="https://forestproductivitycoop.net/wp-content/uploads/2020/08/Cook_FPC-Soils-Updates-2020.pdf" target="_blank" rel="noopener noreferrer">FPC Soil management and update (pdf)</a><br>
-<a href="https://youtu.be/gzr78GkHFIs" target="_blank" rel="noopener noreferrer">Video</a></td><td class="column-4">Rachel Cook</td>
-</tr></tbody>
-</table>
-'  
-#turn a html table into a dataframe- ------
-text= #this is the 2020 annual meeting as of 4/20/23
-  '
-<table id="tablepress-168" class="tablepress tablepress-id-168 dataTable no-footer">
-<caption style="caption-side: bottom; text-align: left; border: medium none; background: none; margin: 0px; padding: 0px; --darkreader-inline-border-top: currentcolor; --darkreader-inline-border-right: currentcolor; --darkreader-inline-border-bottom: currentcolor; --darkreader-inline-border-left: currentcolor; --darkreader-inline-bgcolor: rgba(0, 0, 0, 0); --darkreader-inline-bgimage: none;" data-darkreader-inline-border-top="" data-darkreader-inline-border-right="" data-darkreader-inline-border-bottom="" data-darkreader-inline-border-left="" data-darkreader-inline-bgcolor="" data-darkreader-inline-bgimage=""><a href="https://forestproductivitycoop.net/wp-admin/admin.php?page=tablepress&amp;action=edit&amp;table_id=168" rel="nofollow">Edit</a></caption>
-<thead>
-<tr class="row-1 odd"><th class="column-1 sorting_disabled" rowspan="1" colspan="1" style="width: 67.45px;">Date</th><th class="column-2 sorting_disabled" rowspan="1" colspan="1" style="width: 54.4333px;">Time</th><th class="column-3 sorting_disabled" rowspan="1" colspan="1" style="width: 304.583px;">Presentation</th><th class="column-4 sorting_disabled" rowspan="1" colspan="1" style="width: 113.533px;">Speaker</th></tr>
-</thead>
-<tbody class="row-hover">
-
-
-
-
-
-<tr class="row-2 even">
-	<td class="column-1">Tuesday, August 4 -<br>
-Tuesday, September 1</td><td class="column-2"></td><td class="column-3"><a href="https://forestproductivitycoop.net/wp-content/uploads/2020/06/FPC-Annual-Meeting-Online-Series-Agenda-2020_with-links.pdf" target="_blank" rel="noopener noreferrer">2020 FPC US Annual Meeting Agenda</a></td><td class="column-4"></td>
-</tr><tr class="row-3 odd">
-	<td class="column-1">Tuesday Aug 4</td><td class="column-2">12:00-1:00</td><td class="column-3"><a href="https://forestproductivitycoop.net/wp-content/uploads/2020/08/Cook_State-of-the-FPC-AM-2020.pdf" target="_blank" rel="noopener noreferrer">State of the FPC, overview of meeting structure, preview of upcoming presentations (pdf)</a><br>
-<br>
-<a href="https://youtu.be/XA60np_O_Bo" target="_blank" rel="noopener noreferrer">Presentation recording</a><br>
-</td><td class="column-4">Rachel Cook</td>
-</tr><tr class="row-4 even">
-	<td class="column-1">Tuesday Aug 4</td><td class="column-2">1:00-1:30</td><td class="column-3">Business Meeting - Advisory Council members only</td><td class="column-4"></td>
-</tr><tr class="row-5 odd">
-	<td class="column-1">Thursday Aug 6</td><td class="column-2">12:00-12:30</td><td class="column-3">Background on FPC Soil Management System - Watch or review this before Thursday at 12:00 if you are unfamiliar with the FPC soil system<br>
-<a href="https://forestproductivitycoop.net/wp-content/uploads/2020/08/Cook_FPC-Soils-Background_Recorded-only.pdf" target="_blank" rel="noopener noreferrer">PDF</a><br>
-<a href="https://youtu.be/vOn8J0rGMBM" target="_blank" rel="noopener noreferrer">Video</a><br>
-<br>
-<a href="https://forestproductivitycoop.net/wp-content/uploads/2020/08/Cook_FPC-Soils-Updates-2020.pdf" target="_blank" rel="noopener noreferrer">FPC Soil management and update (pdf)</a><br>
-<a href="https://youtu.be/gzr78GkHFIs" target="_blank" rel="noopener noreferrer">Video</a></td><td class="column-4">Rachel Cook</td>
-</tr><tr class="row-6 even">
-	<td class="column-1">Thursday Aug 6</td><td class="column-2">12:30-1:00</td><td class="column-3"><a href="https://forestproductivitycoop.net/wp-content/uploads/2020/08/Cook_Calcium-Update-FPC-AM-2020.pdf" target="_blank" rel="noopener noreferrer">Calcium study update  (pdf)</a><br>
-<a href="https://youtu.be/RA7Ec3p25vs" target="_blank" rel="noopener noreferrer">Video</a></td><td class="column-4">Rachel Cook</td>
-</tr><tr class="row-7 odd">
-	<td class="column-1">Thursday Aug 6</td><td class="column-2">1:00-1:30</td><td class="column-3">Open discussion</td><td class="column-4"></td>
-</tr><tr class="row-8 even">
-	<td class="column-1">Tuesday Aug 11</td><td class="column-2">12:00-12:30</td><td class="column-3"><a href="https://forestproductivitycoop.net/wp-content/uploads/2020/08/Sumnall_FPC_AM_RStools_2020.pdf" target="_blank" rel="noopener noreferrer">LiDAR and Landsat tools overview and update (pdf)</a><br>
-<a href="https://youtu.be/4mXrpELpOR0" target="_blank" rel="noopener noreferrer">Video</a></td><td class="column-4">Matthew Sumnall</td>
-</tr><tr class="row-9 odd">
-	<td class="column-1">Tuesday Aug 11</td><td class="column-2">12:30-1:00</td><td class="column-3"><a href="https://forestproductivitycoop.net/wp-content/uploads/2020/08/Sumnall_FPC_AM_UAV_and_TLS_projects_2020.pdf" target="_blank" rel="noopener noreferrer">High resolution metric estimation - UAV and terrestrial laser scanning research (pdf)</a><br>
-<a href="https://youtu.be/m4i30kOugro" target="_blank" rel="noopener noreferrer">Video</a></td><td class="column-4">Matthew Sumnall</td>
-</tr><tr class="row-10 even">
-	<td class="column-1">Tuesday Aug 11</td><td class="column-2">1:00-1:30</td><td class="column-3">Open discussion</td><td class="column-4"></td>
-</tr><tr class="row-11 odd">
-	<td class="column-1">Thursday Aug 13</td><td class="column-2">12:00-12:30</td><td class="column-3"><a href="https://forestproductivitycoop.net/wp-content/uploads/2020/08/Albaugh-RW20-Aug-13-2020-AM.pdf" target="_blank" rel="noopener noreferrer">Contribution of biomass partitioning in explaining loblolly pine growth differences in the Southeast US and Brazil (pdf)</a><br>
-<a href="https://youtu.be/4RuUHA9DWVM" target="_blank" rel="noopener noreferrer">Video</a></td><td class="column-4">Tim Albaugh</td>
-</tr><tr class="row-12 even">
-	<td class="column-1">Thursday Aug 13</td><td class="column-2">12:30-1:00</td><td class="column-3"><a href="https://forestproductivitycoop.net/wp-content/uploads/2020/08/Trlica-RW20-biomass-economics-Aug13-2020.pdf" target="_blank" rel="noopener noreferrer">Effect of genetics, planting density, and silviculture on financial returns from short rotation loblolly pine plantations for bioenergy (pdf)</a><br>
-<a href="https://youtu.be/HwqYMAX-3T8" target="_blank" rel="noopener noreferrer">Video</a></td><td class="column-4">Andrew Trlica</td>
-</tr><tr class="row-13 odd">
-	<td class="column-1">Thursday Aug 13</td><td class="column-2">1:00-1:30</td><td class="column-3">Open discussion</td><td class="column-4"></td>
-</tr><tr class="row-14 even">
-	<td class="column-1">Tuesday Aug 18</td><td class="column-2">12:00-12:30</td><td class="column-3"><a href="https://forestproductivitycoop.net/wp-content/uploads/2020/08/Carter-Site-Prep-and-15N.pdf" target="_blank" rel="noopener noreferrer">Effects of site preparation timing on loblolly pine and midrotation 15N fertilization  (pdf)</a><br>
-<a href="https://youtu.be/gos3Qneacho" target="_blank" rel="noopener noreferrer">Video</a></td><td class="column-4">David Carter</td>
-</tr><tr class="row-15 odd">
-	<td class="column-1">Tuesday Aug 18</td><td class="column-2">12:30-1:00</td><td class="column-3"><a href="https://forestproductivitycoop.net/wp-content/uploads/2020/08/Carter_Genotypic-Mixing.pdf" target="_blank" rel="noopener noreferrer">Complimentarity increases production in genetic mixtures of loblolly pine (pdf)</a> <br>
-<a href="https://youtu.be/cg-pabtXocI" target="_blank" rel="noopener noreferrer">Video</a></td><td class="column-4">David Carter</td>
-</tr><tr class="row-16 even">
-	<td class="column-1">Tuesday Aug 18</td><td class="column-2">1:00-1:30</td><td class="column-3">Open discussion</td><td class="column-4"></td>
-</tr><tr class="row-17 odd">
-	<td class="column-1">Thursday Aug 20</td><td class="column-2">12:00-12:30</td><td class="column-3"><a href="https://forestproductivitycoop.net/wp-content/uploads/2020/08/Albaugh-RW19-and-LobTHIN-Aug-20-2020-AM.pdf" target="_blank" rel="noopener noreferrer">Using RW19 data to validate a new thinning model (pdf)</a><br>
-<a href="https://youtu.be/De4JXDuLmCo" target="_blank" rel="noopener noreferrer">Video</a></td><td class="column-4">Tim Albaugh</td>
-</tr><tr class="row-18 even">
-	<td class="column-1">Thursday Aug 20</td><td class="column-2">12:30-1:00</td><td class="column-3"><a href="https://forestproductivitycoop.net/wp-content/uploads/2020/08/Albaugh-RW28-Aug-20.pdf" target="_blank" rel="noopener noreferrer">RW28 P carryover workplan changes and installation update (pdf)</a><br>
-<a href="https://youtu.be/pLa7deMXYTQ" target="_blank" rel="noopener noreferrer">Video</a></td><td class="column-4">Tim Albaugh</td>
-</tr><tr class="row-19 odd">
-	<td class="column-1">Thursday Aug 20</td><td class="column-2">1:00-1:30</td><td class="column-3">Open discussion</td><td class="column-4"></td>
-</tr><tr class="row-20 even">
-	<td class="column-1">Tuesday Aug 25</td><td class="column-2">12:00-12:30</td><td class="column-3"><a href="https://forestproductivitycoop.net/wp-content/uploads/2020/08/Rubilar-RW23-WC-Intensity-and-Duration-8-years-E-grandis-2020.pdf" target="_blank" rel="noopener noreferrer">RW23 Intensity and duration of weed control in Eucalyptus grandis - 8 year response  (pdf)</a><br>
-<a href="https://youtu.be/QvZCPw8qwJQ" target="_blank" rel="noopener noreferrer">Video</a></td><td class="column-4">Rafael Rubilar</td>
-</tr><tr class="row-21 odd">
-	<td class="column-1">Tuesday Aug 25</td><td class="column-2">12:30-1:00</td><td class="column-3"><a href="https://forestproductivitycoop.net/wp-content/uploads/2020/08/Campoe_RW20-BR_C-Balance_2020.pdf" target="_blank" rel="noopener noreferrer">Implications of C balance on the productivity of varietals (pdf)</a><br>
-<a href="https://youtu.be/0qzcQFvL9gQ" target="_blank" rel="noopener noreferrer">Video</a></td><td class="column-4">Otávio Campoe</td>
-</tr><tr class="row-22 even">
-	<td class="column-1">Tuesday Aug 25</td><td class="column-2">1:00-1:30</td><td class="column-3">Open discussion</td><td class="column-4"></td>
-</tr><tr class="row-23 odd">
-	<td class="column-1">Thursday Aug 27</td><td class="column-2">12:00-12:30</td><td class="column-3"><a href="https://forestproductivitycoop.net/wp-content/uploads/2020/08/Campoe-RW07-BR-Pinus-Early-growth_2020.pdf" target="_blank" rel="noopener noreferrer">Effects of site preparation, weed control, and fertilization on pine plantations in southern Brazil (pdf)</a><br>
-<a href="https://youtu.be/dJpHTeVunAU" target="_blank" rel="noopener noreferrer">Video</a></td><td class="column-4">Otávio Campoe</td>
-</tr><tr class="row-24 even">
-	<td class="column-1">Thursday Aug 27</td><td class="column-2">12:30-1:00</td><td class="column-3"><a href="https://forestproductivitycoop.net/wp-content/uploads/2020/08/Rubilar-FPC-AM-2020-RW7-Long-term-effects-of-site-prep-wc-and-fert_final.pdf" rel="noopener noreferrer">Long-term effects of site preparation, weed control, and fertilization on radiata pine (pdf)</a><br>
-<a href="https://youtu.be/dDLSw8pHNls" target="_blank" rel="noopener noreferrer">Video</a></td><td class="column-4">Rafael Rubilar</td>
-</tr><tr class="row-25 odd">
-	<td class="column-1">Thursday Aug 27</td><td class="column-2">1:00-1:30</td><td class="column-3">Open discussion</td><td class="column-4"></td>
-</tr><tr class="row-26 even">
-	<td class="column-1">Tuesday Sep 1</td><td class="column-2">12:00-1:00</td><td class="column-3"><a href="https://forestproductivitycoop.net/wp-content/uploads/2020/09/Hackman_FPC-2020-RW28-Soil-P.pdf" rel="noopener noreferrer">RW28 Biotic And Abiotic Contributions To Phosphorus Bioavailability For Loblolly Pine (pdf)</a></td><td class="column-4">Jacob Hackman</td>
-</tr><tr class="row-27 odd">
-	<td class="column-1">Tuesday Sep 1</td><td class="column-2">12:00-1:00</td><td class="column-3"><a href="https://forestproductivitycoop.net/wp-content/uploads/2020/09/Cohrs-Sentinel2-FPC-AM-2020.pdf" rel="noopener noreferrer">Sentinel-2 LAI Web App, Soil Modeling, and Precision Forestry (pdf)</a><br>
-<a href="https://youtu.be/9DLk5y2VfQM" target="_blank" rel="noopener noreferrer">Sentinel 2 Data download walkthrough and directory navigation video</a><br>
-<br>
-</td><td class="column-4">Chris Cohrs</td>
-</tr><tr class="row-28 even">
-	<td class="column-1">Tuesday Sep 1</td><td class="column-2">12:00-1:00</td><td class="column-3"><a href="https://forestproductivitycoop.net/wp-content/uploads/2020/09/Caisley-Ca-Project-update-FPC-2020-LabpHWork_V4.pdf" rel="noopener noreferrer">Calcium study:  Increasing the pH of organic soil (pdf)</a></td><td class="column-4">Lena Caisley</td>
-</tr><tr class="row-29 odd">
-	<td class="column-1">Tuesday Sep 1</td><td class="column-2">12:00-1:00</td><td class="column-3"><a href="https://forestproductivitycoop.net/wp-content/uploads/2020/09/Byers-Chem-Site-Prep-study-FPC-2020-AM-Presentation-9-1.pdf" rel="noopener noreferrer">Chemical site prep study (pdf)</a></td><td class="column-4">Alexander Byers</td>
-</tr><tr class="row-30 even">
-	<td class="column-1">Tuesday Sep 1</td><td class="column-2">12:00-1:00</td><td class="column-3"><a href="https://youtu.be/Ymue23pt_H0" rel="noopener noreferrer">Video, all speakers combined</a></td><td class="column-4">Hackman, Cohrs, Caisley and Byers</td>
-</tr></tbody>
-</table>
-'  
-#replicates the table as a df
-my_df <- as.data.frame(read_html(text) %>% html_table(fill=TRUE))
-
-(my_df)%>%wex()
-
-
-#delete<-
-
-# headt<-
-#get the text from the links
-text%>%
-  read_html()%>%
-  html_elements("a")%>%
-  html_text()%>%
-  wex()
-head()
-
-#get the urls form the links
-text%>%
-  read_html()%>%
-  html_elements("a")%>%
-  html_attr("href")%>%
-  wex()
-
-#can i get the html url and the columns stuff?
-#1st look for just the columns stuff
-text%>%
-  read_html()%>%
-  html_elements("tr")%>%
-  head()
-#this gives the rows as individual html things
-text%>%
-  read_html()%>%
-  html_elements("td")%>%
-  head()
-#this gives the columns by row as individual html things
-
-html_text()%>%
-  
-  #see what rcrawler does-----
-LinkExtractor(url="https://forestproductivitycoop.net/2020-us-annual-meeting/",
-              ExternalLInks=T)
-#seems powerful but too long to learn. no obvious way to get link text
-
-#see if rvests html_text helps with out mapdf:----
-#pretty sure it doesnt because the htlm nodes isnt working
-library(rvest)
-
-url<-"https://forestproductivitycoop.net/2020-us-annual-meeting/"
-
-#read the page
-page<-read_html(url)
-
-#get hyperlink nodes
-#the 'a' tag under a 'h3' tag under 'div' tag of class 'summary' 
-#under a 'div' tag of class 'question-summary'
-nodes<-html_nodes(page, "div.question-summary div.column-3 h3 a")
-
-#Get text
-question<-html_text(nodes)
-#get link
-link<-paste0("https://stackoverflow.com", html_attr(nodes, "href"))
-
-answer<-data.frame(question, link)
-head(answer)
-
-#see if rvest works with map_df:-----
-library(tidyverse)
-library(rvest)
-
-nodes <- read_html('https://stackoverflow.com/questions/tagged/r?tab=votes&page=1&pagesize=50')%>%html_nodes("[class=question-hyperlink]")
-
-page2020<- read_html("https://forestproductivitycoop.net/2020-us-annual-meeting/")
-#  html_nodes(trash, "table[border='1']")
-html_nodes(page2020, "table[id='tablepress-168']")
-
-
-html_elements(page2020, xpath=".//div[@data-testid=]")
-html_nodes("[class=column-3]")
-
-df <- map_df(nodes,~{
-  questions = .x %>% html_text()
-  links =  paste0('https://stackoverflow.com',.x %>% html_attr("href") )
-  tibble(questions, links)
-})
-
-
-
-#trash-----
-read_html(
-  '
- <table border="1" cellspacing="0" cellpadding="5">
-   <tbody><tr><td>
-   <table border="0" cellpadding="2" cellspacing="0">
-   <tbody><tr>
-   <td bgcolor="#ff9999"><strong><font size="+1">CASEID</font></strong></td>
-   </tr></tbody>
-   </table>
-   <tr><td>[tbody]
- </table>
-')->trash
-
-html_nodes(trash, "a")
-
-#summarise slight success----
-#replicates the table as a df
-my_df <- as.data.frame(read_html(text) %>% html_table(fill=TRUE))
-head(my_df) 
-#gets all the text associated with links in a list, not confined to 
-#... what isinside cells
-headt<-text%>%
-  read_html()%>%
-  html_elements("a")%>%
-  html_text()
-
-#this is how i get the links again
-text%>%
-  read_html()%>%
-  html_elements("a")%>%
-  html_attr(., "href")%>%
-  wex()
-
-#im sure I could get the speaker etc somehow
-
-
-list.fol
-#just get pdfs------
-# Set the working directory to the directory containing the folders to copy
-setwd("G:/Shared drives/FER - FPC Team/Meetings")
-
-# Create a list of all folders in the source directory
-folders <- list.dirs()
-
-# Create a new directory to copy the PDF files to
-dir.create("G:/Shared drives/FER - FPC/Meetings")
-
-# Loop through each folder and copy PDF files to the new directory
-for (folder in folders) {
-  # Create a list of PDF files in the current folder
-  pdf_files <- list.files(path = folder, pattern = "\\.pdf$", full.names = TRUE)
-  
-  # If there are PDF files, copy them to the new directory
-  if (length(pdf_files) > 0) {
-    file.copy(from = pdf_files, to = "G:/Shared drives/FER - FPC/Meetings", overwrite = TRUE)
-  }
-}
-#just get pdfs but maintain hierarchy-----
-# Set the working directory to the directory containing the folders to copy
-setwd("G:/Shared drives/FER - FPC Team/Meetings")
-
-# Create a new directory to copy the PDF files to
-dir.create("G:/Shared drives/FER - FPC/Meetings", showWarnings = FALSE)
-
-# Loop through each subdirectory in the Meetings directory
-for (folder in list.dirs(full.names = TRUE)) {
-  # Create a new directory in the target directory that matches the source directory
-  target_folder <- file.path("G:/Shared drives/FER - FPC/Meetings", folder)
-  dir.create(target_folder, recursive = TRUE, showWarnings = FALSE)
-  
-  # Create a list of PDF files in the current folder
-  
-  pdf_files <- list.files(path = folder, pattern = "\\.pdf$", full.names = TRUE)
-  
-  # If there are PDF files, copy them to the new directory
-  if (length(pdf_files) > 0) {
-    file.copy(from = pdf_files, to = target_folder, overwrite = TRUE)
-  }
-}
-
-
-
-#same as above but for thing that also have a pptx:~~~~~~~~~~~~~
-
-# Set the working directory to the directory containing the folders to copy
-setwd("G:/Shared drives/FER - FPC Team/Meetings")
-
-# Create a new directory to copy the PDF files to
-dir.create("G:/Shared drives/FER - FPC/Meetings", showWarnings = FALSE)
-
-# Loop through each subdirectory in the Meetings directory
-for (folder in list.dirs(full.names = TRUE)) {
-  # Create a new directory in the target directory that matches the source directory
-  target_folder <- file.path("G:/Shared drives/FER - FPC/Meetings", folder)
-  dir.create(target_folder, recursive = TRUE, showWarnings = FALSE)
-  
-  # Create a list of PDF files in the current folder
-  
-  pdf_files <- list.files(path = folder, pattern = "\\.ppt$", full.names = TRUE)%>%
-    str_replace(string=.,pattern = "\\.ppt$","\\.pdf")
-  
-  
-  #  pdf_files <- list.files(path = folder, pattern = "\\.pdf$", full.names = TRUE)
-  
-  # If there are PDF files, copy them to the new directory
-  if (length(pdf_files) > 0) {
-    file.copy(from = pdf_files, to = target_folder, overwrite = TRUE)
-  }
-}
-
-
-#In the code above, we first set the working directory to the directory containing the source folders. We then use the list.dirs function to create a list of all folders in the source directory.
-
-#Next, we create a new directory to copy the PDF files to using the dir.create function.
-
-#We then loop through each folder in the folders list, and use the list.files function to create a list of PDF files in each folder. The pattern argument is set to "\\.pdf$" to only list files with a ".pdf" extension. The full.names argument is set to TRUE to return the full path to each file.
-
-#If there are any PDF files in the current folder, we use the file.copy function to copy them to the new directory.
-
-#Note that the overwrite argument in file.copy is set to TRUE to overwrite any existing files in the destination directory with the same name.
-
-
-#delete, timing stuff, delete this----
-
-start_time <- Sys.time()
-sleep_for_a_minute()
-end_time <- Sys.time()
-end_time - start_time
-
-#
-all_files <- list.files() # Get all the files in your working directory
-pptx_files <- all_files[ which(stringr::str_detect(all_files, "\\.pptx"))] # filter for only those files with .pptx extenstion
-
-# Loop through all the pptx files converting them to pdf using the function. Replace the .pptx extension with a .pdf
-start_time <- Sys.time()
-for(i in seq_along(pptx_files)) {
-  convert_to_pdf(path = pptx_files[i], pdf_file = paste0(str_remove(pptx_files[i], "\\.pptx"), ".pdf"))
-} #this is in 
-end_time <- Sys.time()
-end_time - start_time
-
-
-
-
-#google sheets read inn=-----
-#STUDY	PLOT	Tree	Ht,  ft.in	HTLC,ft.in	dbh,mm	RCD,mm	Mortality	Damage code	 dam	row end?	Notes	date																	
-#fuck<-gsheet2tbl('https://docs.google.com/spreadsheets/d/1foGV8kUzgDiTsx0coouDvG0TWm7eks7DYMZt0Gx-e_4/edit#gid=1283512166')
-link_to_Gsheets <- "https://docs.google.com/spreadsheets/d/1foGV8kUzgDiTsx0coouDvG0TWm7eks7DYMZt0Gx-e_4/edit#gid=1283512166"
-
-datadbh282201<-read_sheet(link_to_Gsheets, sheet="282201")
-datadbh281303<-read_sheet(link_to_Gsheets, sheet="281303")
-
-#see trees per plot
-#datadbh281303%>%
-datadbh282201%>%
-  as.data.table()%>%
-  dplyr::select(c(PLOT,dbh))%>% #select is comgin from somewhere else if not explicit
-  melt(.,id.vars="PLOT")%>%
-  cast(PLOT~variable)%>%
-  print
-
-is.num
-datadbh <-  link_to_Gsheets %>%
-  sheet_names() %>% #get names
-  set_names()  #give names
-#%>%  map_df(read_sheet, ss = link_to_Gsheets, .id = "Cut") #if you want to combine sheets (usually you wouldnt unless they are essentially the same ; this is like rbindrows more or less)
-#html table trtash----
-#Media Library File Download
-#trash
-library(XML)
-library(httr)
-
-pgsession
-url="https://forestproductivitycoop.net/2020-us-annual-meeting/"
-#pick up modifying this  to use on a members page and see if it writes now
-read_html(url)%>%write_html(file="G:/Shared drives/FER - FPC Team/Website/Htmltables/2020writehtml-loggedin.html")
-
-
-r2 <- s %>% GET("https://forestproductivitycoop.net/2020-us-annual-meeting/")
-
-# Extract the HTML from the response
-html <- content(r, as = "text")
-
-
-
-content(r,as = "text")%>%head()
-
-read_html("https://forestproductivitycoop.net/2020-us-annual-meeting/")%>%write_html(file="G:/Shared drives/FER - FPC Team/Website/Htmltables/2020writehtml-loggedin.html")
-
-tbl <- url %>% read_html() %>% html_node("table") #%>% html_table(fill = TRUE,header=F)
-url %>% read_html() %>% html_node("article div") 
-resXML <- htmlParse(url, as = "text")
-
-htmlParse(url, isURL = T)
-
-url <- paste0("http://www.speech.cs.cmu.edu/cgi-bin/cmudict?in=",word,"&stress=-s")
-h <- handle(url)
-res <- GET(handle = h)
-
-GET(handle(url))
-htmlpar
-
-library(XML)
-library(RCurl)
-#url <- ("https://angel.co/companies?locations[]=1647-India")
-httr::set_config(httr::config(ssl_verifypeer=0L))
-devtools::install_github('r-lib/httr')
-htmlContent <- getURL(url)
-htmlTree <- htmlTreeParse(htmlContent)
-#md
-
-
-#html DONT DELETE login (start)-----
-#get full list of webpages read in:
-mp<-read.csv("Q:/Shared drives/FER - FPC Team/Website/Htmltables/Events-past-maintable.csv")%>% #main page table, only the events with tables on the page when you click on them as opposed ot just a pdf or video etc
-  subset(.,site==TRUE)%>%
-  select(link,linkbase,what)
-
-
-
-
-
-# Create a web session with the desired login address
-s <- session("https://forestproductivitycoop.net/wp-login.php")
-
-# Fill in login form
-pgform <- html_form(s)[[1]]
-filled_form <- html_form_set(pgform, log = "sabloszi@ncsu.edu", pwd = "didn'tthinkid6ehere")
-
-
-#mp2<-mp#safe big one is mp2
-#mpp<-mp2%>%
-# subset(.,what=="Title (pdf)")#had to do chunks bc unknown ones kep messing up and apparently it doensnt do them in order
-#
-#mpp2<-mpp[,]
-
-#mpl<-lapply(split(mpp2,mpp2$link), function(x){
-
-r2 <- 
-  session_submit(s, filled_form)%>%
-  session_jump_to(., "https://forestproductivitycoop.net/2015-annual-meeting/")
-
-#8/28/23 pick up getting the last full one, the one with two presetnation columns then delete this line
-#session_jump_to(., x$link) 
-
-#use this to test what it got:
-#r2%>%
-# read_html()%>%write_html(file="G:/Shared drives/FER - FPC Team/Website/Htmltables/2020writehtml-loggedin.html")
-
-
-#html DONT DELETE actual page stuff----
-
-
-# read the HTML table from the URL
-#url <- "https://mayhaw.github.io/delete/"
-url<-r2 #from the 2020 or whatever actual page
-
-#need this for later to get the text columns
-tbl <- url %>% read_html() %>% html_node("table") %>% html_table(fill = TRUE,header=T)
-
-#need this for the immediately next steps to get the code. it is a bodge that I don't really understand because 
-#... it doesn't actually matter what column you pick in the .$Presentation%>% part but it seems like it does have to reproduce the list element the same number of times as the same number of rows in the dataframe for everything else to work so picking presentation works fine
-html_pres <- 
-  url %>% read_html() %>% html_node("table") %>% html_table(fill = TRUE,header=T)%>% 
-  .$`Presentation` %>%
-  map(~read_html(url))
-
-#get the links from the html_pres thing
-links<-html_elements(html_pres[[1]],"tr")[-1]%>% #the -1 part in  ...tr")[-1]%  is a bodge because I'm manually getting rid of the first row of the table becauses really it's a header but idk how else to do this for now  since there's no header option for this stuff since html_elements isn't meant for thinking of this as a table
-  map(~html_nodes(., "a") %>% html_attr("href"))
-
-#get the english text that the link is presented as to the website viewer from the html_pres thing
-targets<-  html_elements(html_pres[[1]],"tr")[-1]%>%  #the -1 part in  ...tr")[-1]%  is a bodge because I'm manually getting rid of the first row of the table becauses really it's a header but idk how else to do this for now since there's no header option for this stuff since html_elements isn't meant for thinking of this as a table
-  map(~html_nodes(., "a") %>% html_text())
-
-# combine the links and targets into a single column
-link_targets <- mapply(function(links, targets) {
-  paste0("(", links, ", ", targets, ")")
-}, links, targets, SIMPLIFY = FALSE)
-
-#get the original html_table() character data together with the link html_text() ("targets") and html_attr("href) ("link") info
-tbl<-data.frame(tbl)%>%
-  mutate(link_target = link_targets) %>%  
-  unnest(link_target) %>%
-  separate(link_target, into = c("link", "target"), sep = ", ", remove = FALSE)%>%
-  mutate(link=  substr(link,2,nchar(link)))%>%
-  mutate(target=  substr(target,1,nchar(target)-1))
-
-
-
-tbl<-tbl%>%
-  mutate(linkbase=basename(link))
-wex(tbl)
-
-#})
-
-#https://docs.google.com/spreadsheets/d/1mTh9tjHqDijWx0OsoPXTXF_RH0croFYTip0vMmAQeVU/edit?usp=sharing
-#got the button on the title menue but it doesnt work.
-
-
-#google drive file info stuff----
-
-#usually need to login in fresh r-: (also usually need to check the boxt that says allow tidyverse api to see files in drive):
-#PICK SEND TO BROWSER
-drive_auth(
-  email = gargle::gargle_oauth_email(),
-  #path = NULL, shouldn't need this unless it stops remembering sabloszi, in which case Idk what to write here instead of NULL
-  scopes = "https://www.googleapis.com/auth/drive",
-  cache = gargle::gargle_oauth_cache(),
-  use_oob = gargle::gargle_oob_default(),
-  token = NULL
-)
-#i used this to get the file list in a google file folder INCLUDING the links etc
-#https://drive.google.com/drive/u/0/folders/...[your id here]
-#xme <- drive_get(id="1YQacwq8m4320xQgfJ1RNgmZMYFXmKtRI")
-#xme <- drive_ls(as_id="1FpjYxZkAfqKEs0jB-oybreMETapXjuuW")
-#xme <- drive_ls(drive_get(id="1YQacwq8m4320xQgfJ1RNgmZMYFXmKtRI"))
-xme <- drive_ls(drive_get(id="1kJ5Wau23QKu1Wuw0l1R8fL_lRKV42-fO"))#usually you want this one which is "Q:\Shared drives\FER - FPC Team\Website\Htmltables\wordpressdownloads\mlfd-forestproductivitycoop"
-
-#1kJ5Wau23QKu1Wuw0l1R8fL_lRKV42-fO is the unsplit folder, downloaded 9/?/23
-#1FpjYxZkAfqKEs0jB-oybreMETapXjuuW is the unsplit  folder, downloaded 4/25/23
-#1YQacwq8m4320xQgfJ1RNgmZMYFXmKtRI is split by ext folder, downloaded ~4/21?/23
-
-#drive.google.com/open?id={file-id} should open any id if you have the id
-#for example drive.google.com/open?id=1kJ5Wau23QKu1Wuw0l1R8fL_lRKV42-fO
-#so pick back up seeing if you can do a merge of a real limited number of files
-
-#see names of the google tibble dribble thing
-#xme%>%names()
-googledmerge<-xme%>%dplyr::select(c(id,name))
-#  unnest_wider(col=drive_resource)#maybe this would tell me whats in that colkumn (its a list i thnk0)
-
-#as is, this is a way to get recents through R. It seems toalso be a flexible search if you know how to use it
-#drive_find(n_max = 30) 
-
-#merge googledmerge with tbl----
-#this finally works; has links for the same pdf in both wordpress and in google drive;
-# can now repeat for all meetings but first:
-#1. tweak so youtube and dropbox show up in same column as glink current contents
-#figure out if dropbox stuff ends up with a link for other years
-#2. keep sorting of the tbl as it was so you dont have to fool with times and dates columns
-#3. fix column names
-#4. next enginner a way to do at least two different meetings' tbls; 
-#... should stil be able to use just one googledmerge
-
-#need custom function temporarily to get the start of where the linktext is inside the presentation box in the wordpress
-find_start_position <- function(string, substring) {
-  result <- str_locate(string, substring)
-  if (is.na(result[1])) {
-    return(NA)
-  } else {
-    return(result[1])
-  }
-}
-
-
-
-
-tbl$rowsortid  <- 1:nrow(tbl)#create tbl column to sort by later
-
-#gold<-
-merge(tbl,googledmerge,by.x="linkbase",by.y="name",all.x=T,all.y=F,sort=T)%>%
-  mutate(., glink=paste0("https://drive.google.com/open?id=",id))%>%
-  #GOLLLLLLLLLLLLLLLLLLLLLLD!
-  
-  #ok now clean up table:
-  
-  # mutate(.,dirname=domain(link))%>% #get host for later step
-  #  mutate(.,ext=extension(link))%>%
-  #  select(c(rowsortid,dirname,ext,Presentation,link,target))%>%
-  mutate(start = map2_int(Presentation, target, find_start_position))%>%
-  #  select(-c(link_target,linkbase))%>% #dont need link_target because it was split into link and target columns; dont need linkbase anymore because you already used it for its one purpose: the merge to get the glinks
-  rename(.,wplink="link")%>%#make it clear this was the wordpress link
-  mutate(.,glink=ifelse(is.na(id),NA,glink))%>%
-  mutate(., replpres=ifelse(
-    #if target's in the latter half
-    (start>nchar(Presentation)*0.5),
-    #get rid of the target (the replacement is "")
-    "", #gsub(target," ",pres)
-    #, It's in the first half of pres,
-    #(else)##keep the whole pres as is
-    target))%>%
-  mutate(.,newpres=str_replace_all(.$Presentation,fixed(.$target),.$replpres))%>%
-  arrange(rowsortid)%>%
-  wex()
-select(c(Presentation,newpres,wplink,replpres,target))
-#ok so this works as long as you can figoure out how to a) do a group by to pick the shortest one of "newpres" and fill down and B) get rid of anything like (pdf) in that column
-#  mutate(.,link=ifelse(dirname%in%c("youtu.be","dropbox",NA),wplink,glink))#wp links for youtube, dropbox, and NA (no link on wp); but google links for wordpress-hosted stuff 
-
-
-
-
-cleangold<-gold   #leave gold as a backup for now
-#FNAS pick up here 5/23/2023 - need to see where i was going with the pres titles to clean them up
-
-
-
-cleangold2<-cleangold%>%
-  select(c(Date,Time,Presentation,Speaker,link,rowsortid,target))%>%
-  arrange(rowsortid)%>%#put back in order it was in the wp website html table
-  select(-rowsortid)%>%
-  transform(., Presentation = 
-              ifelse(nchar(link)==0,Presentation,
-                     paste('<a href = ', shQuote(link), '>', target, '</a>')
-              ))%>%
-  mutate(.,Date=gsub("\n","",Date))%>%
-  mutate(.,Meeting_Type="Annual")%>%
-  mutate(.,Year="2020")%>%
-  select(c(Meeting_Type,Year,Date,Time,	Presentation,	Speaker))%>%
-  gvisTable(., options = list(allowHTML = TRUE))
-#see it
-plot(cleangold2)
-
-#turn it into flat text instead of google stuff
-htmlstring <- paste(c(cleangold2$html$header,paste(cleangold2$html$chart,collapse = ""),cleangold2$html$caption,cleangold2$html$footer),collapse = "\n")
-
-#save it
-
-
-
-write_html(read_html(htmlstring),file="G:/Shared drives/FER - FPC Team/Website/Htmltables/2020writehtml-glinks.html")  
-
-
-#1. Getting rid of target text in a string with regex (for pdf and video in pres titles): Test-----
-
-dfl<-df%>%
-  mutate(.,fuck4=nchar(target))%>%
-  mutate(.,ty=c("pdf","vd"))%>%
-  mutate(.,w=c("R...(pdf)","R...ff"))
-
-dfl2<-dfl%>%
-  mutate(.,presrepl=ifelse(start>0.5*(nchar(Presentation))," ",target))%>%
-  #string 
-  #pat
-  #repl
-  mutate(.,newpres=str_replace_all(.$Presentation,
-                                   fixed(target),
-                                   presrepl))
-#ok this is good because I did get the thing i want in "newpres" in the shortest
-#... version. Great if theres only two. which is most of them
-dfl2%>%
-  group_by(.,Presentation)%>% #meed to add year etc for big table)
-  summarise(ncharm=min(nchar(newpres)))%>%
-  merge(.,dfl2,by="Presentation")%>%#meed to add year etc for big table)
-  mutate(.,newpres=ifelse(ncharm==nchar(newpres),newpres,NA))%>%
-  select(c(Presentation,newpres))
-
-
-
-
-
-#if(high start,replace presentation-target with "")
-#if(low start,replace presentation-target with target)
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-#string pat repl
-mutate(.,preserepl=ifelse(start>0.5*nchar(Presentation),target,""))%>%
-  mutate(.,newpres=str_replace_all(.$Presentation,
-                                   fixed(preserepl),
-                                   target))
-
-#2. Getting rid of target text in a string with regex (for pdf and video in pres titles): Real-----------
-golddf<-merge(tbl,googledmerge,by.x="linkbase",by.y="name",all.x=T,all.y=F,sort=T)%>%
-  mutate(., glink=paste0("https://drive.google.com/open?id=",id))%>%
-  #GOLLLLLLLLLLLLLLLLLLLLLLD!
-  
-  #ok now clean up table:
-  
-  # mutate(.,dirname=domain(link))%>% #get host for later step
-  #  mutate(.,ext=extension(link))%>%
-  #  select(c(rowsortid,dirname,ext,Presentation,link,target))%>%
-  mutate(start = map2_int(Presentation, target, find_start_position))%>%
-  #  select(-c(link_target,linkbase))%>% #dont need link_target because it was split into link and target columns; dont need linkbase anymore because you already used it for its one purpose: the merge to get the glinks
-  rename(.,wplink="link")%>%#make it clear this was the wordpress link
-  mutate(.,glink=ifelse(is.na(id),NA,glink))
-
-
-
-golddfl2<-golddf%>%
-  mutate(.,presrepl=ifelse(start>0.5*(nchar(Presentation))," ",target))%>%
-  #string 
-  #pat
-  #repl
-  mutate(.,newpres=str_replace_all(.$Presentation,
-                                   fixed(target),
-                                   presrepl))
-#ok this is good because I did get the thing i want in "newpres" in the shortest
-#... version. Great if theres only two. which is most of them
-golddfl2%>%
-  group_by(.,Presentation)%>% #meed to add year etc for big table)
-  summarise(ncharm=min(nchar(newpres)))%>%
-  merge(.,golddfl2,by="Presentation")%>%#meed to add year etc for big table)
-  mutate(.,newpres=ifelse(ncharm==nchar(newpres),newpres,NA))%>%
-  #select(c(Presentation,newpres))%>%
-  wex()
-
-
-
-
-
-#3. Getting rid of target text in a string with regex (for pdf and video in pres titles): List (delete this eventually)----
-#this was just to see if I could turn a df into a list. Was goig to submit to the oracle for advice. Or at least see how a list vs df looks and play with unlist(
-#or something to figure out on my own, since really the presentaiton tables are more like lists in that there are
-#... multiple and different numbers of pdfs and videos per talk/time slot/agenda item
-df<-data.frame(a=(c("video","pdf","pdf1","pdf2","video","pdf")),
-               remove=c("recording","presentation","pdf1","pdf2","video","pdf"),
-               b=c("abcrecording","abcpresentation","defpdf1pdf2","defpdf1pdf2","defvideo","ghipdf"))
-
-dfrun<-paste(unique(df$remove), collapse = "|")
-
-df$c<-gsub(dfrun,"",df$b)
-
-
-list("t1"=data.frame(b="oct1",c=c("t1video","t1pdf")),
-     "t2"=data.frame(b="oct1",c=c("t2pdf1","t2pdf2","t2video")),
-     "t3"=data.frame(b="oct1",c=c("t1pdf")))
-
-#4. Getting rid of target text in a string with regex (for pdf and video in pres titles): whichmax trash (delete this eventually, probably sooner than later)-----
-df <- data.frame(Presentation = c("Rachel talks about stuff(pdf)", "Rachel talks about stuff(pdf)"),
-                 target = c("(pdf)", "Rachel t"))%>%
-  mutate(start = map2_int(Presentation, target, find_start_position))
-
-#not that important/germance but worth some sor points
-#pull<-df%>% 
-#  pull(target)
-#which(pull==max(nchar(pull)))
-#drunk you found out somethign interesting if you want to pist a q to sor
-# end not that important 
-
-dfl<-df%>%
-  mutate(.,fuck4=nchar(target))%>%
-  mutate(.,ty=c("pdf","vd"))%>%
-  mutate(.,w=c("R...(pdf)","R...ff"))
-dfl%>%
-  #string pat repl
-  mutate(.,preserepl=ifelse(start>0.5*nchar(Presentation),target,""))%>%
-  mutate(.,newpres=str_replace_all(.$Presentation,
-                                   fixed(preserepl),
-                                   target))
-print()
-#iftarget's at the end,
-#... new pres= oldpres
-#...else newp= old pres but get rid of presentation pdf thing
-#realization: need to get rid of "pdf" on lines with no indication that there's
-#... anything special about "pdf" so what do i di??????
-#just get rid of anything with a linK thats not at the beginning....
-#... and only keep presentation's linked text if it's at the beginning.
-#... else get rid of linked text in presentation (target0)
-
-
-
-
-
-str_repl_
-
-
-
-
-
-
-mutate(.,preserepl=ifelse(start>0.5*nchar(Presentation),target," "))%>%
-  mutate(.,newpres=str_replace_all(.$Presentation,fixed(.$presrepl),
-                                   ("fuck")))%>%
-  print()
-group_by(.,Presentation)%>%
-  summarise(.,fucklong=min(fuck4))%>%
-  merge(.,dfl,by="Presentation")
-
-
-subset(which(nchar=max(nchar(.))))
-#5. Getting rid of target text in a string with regex (for pdf and video in pres titles): almost certainly trash (delete this eventually, probably sooner than later)----
-# Load the stringr package
-library(stringr)
-
-# Create a sample data frame
-df <- data.frame(pres = c("Rachel talks about stuff(pdf)", "Rachel talks about stuff(pdf)"),
-                 target = c("(pdf)", "Rachel t"))
-
-# Define a function to find the starting position of a string in a column of character data
-find_start_position <- function(string, substring) {
-  result <- str_locate(string, substring)
-  if (is.na(result[1])) {
-    return(NA)
-  } else {
-    return(result[1])
-  }
-}
-
-
-replace_target_string <- function(pres, target, start) {
-  if (start < 0.5*nchar(pres)) {
-    result <- gsub(target, " ", pres)
-  } else {
-    result <- pres
-  }
-  return(result)
-}
-
-df %>%
-  mutate(start = map2_int(pres, target, find_start_position))%>%
-  mutate(.,pres=ifelse(start<0.5,
-                       replace_target_string(pres, target,start),
-                       pres)
-         
-         
-         df%>%
-           mutate(.,start=gsub("f","",target))
-         
-         
-         
-         
-         
-         # Apply the function to the data frame using map2
-         result <- map2(df$pres, df$target, find_start_position))
-
-# Print the result
-print(result)
-
-#6. Getting rid of target text in a string with regex (for pdf and video in pres titles): mostly trash (delete this eventually, probably sooner than later)----
-
-# Define a function to find the starting position of a string in a column of character data
-find_start_position <- function(string, substring) {
-  result <- str_locate(string, substring)
-  if (is.na(result[1])) {
-    return(NA)
-  } else {
-    return(result[1])
-  }
-}
-
-# Define a function to replace the "target" string with a space character in the "pres" string
-# only if the "start" value is less than 3
-replace_target_string <- function(pres, target, start) {
-  if (start < 3) {
-    result <- gsub(target, " ", pres)
-  } else {
-    result <- pres
-  }
-  return(result)
-}
-# Create a sample data frame
-df <- data.frame(pres = c("Rachel talks about stuff(pdf)", "Rachel talks about stuff(pdf)"),
-                 target = c("(pdf)", "Rachel t"))
-
-
-
-df<-df %>%
-  mutate(start = map2_int(pres, target, find_start_position))
-
-dfrun<-paste(unique(df[df$start>0.5*nchar(df$pres),"target"]), collapse = "|")
-df%>%
-  mutate(., replpres=ifelse(
-    #if target's in the latter half
-    (start>nchar(pres)*0.5),
-    gsub(dfrun,"",.$pres,fixed=T),
-    pres))%>%
-  wex()
-
-gsu
-
-#" "))%>%
-mutate(.,newpres=str_replace_all(.$pres,fixed(.$target),.$replpres))%>%
-  
-  str_repl
-
-vector <- c("SPN.subset(RELN(s)geneset1", "Myeloid.svz.geneset1")
-sub("\\(\\)", ").caudate.", vector)
-
-gsub("log\\(", "", string)
-
-#string pat repl
-df%>%
-  )))))))
-
-df%>%
-  mutate(.,presw=gsub(target," ",pres))
-
-
-
-# Print the result
-print(dfwant)
-#read a gmail----
-
-#rmarkdown----
-
-
-
-##libreoffice stuff to convert pptx or docx or doc to pdf-----
-library(dplyr)
-library(purrr)
-library(docxtractr)
-
-# You have to show the way to the LibreOffice before
-set_libreoffice_path("C:/Program Files/LibreOffice/program/soffice.exe")
-
-#0.1 set wd
-setwd("G:/Shared drives/FER - FPC Team")
-library(dplyr)
-library(purrr)
-library(docxtractr)
-
-# You have to show the way to the LibreOffice before
-set_libreoffice_path("C:/Program Files/LibreOffice/program/soffice.exe")
-
-# 1) List of pptx documents
-pptxs <- list.files("Meetings/",recursive = T,
-                    pattern = "?.pptx",
-                    full.names = T)
-
-# 2) Custom function
-pptx2pdf <- function(path){
-  
-  # Let's extract the name of the file
-  name <- str_remove(path, "Meetings/") %>% 
-    str_remove(".pptx")
-  
-  convert_to_pdf(path,
-                 pdf_file = paste0("Meetings/",
-                                   name,
-                                   ".pdf"))
-  
-}
-
-# 3) Convert
-pptxs %>%
-  map(~pptx2pdf(.x))
-
-
-#delete-----
-read.csv("C:/Users/sabloszi/Desktop/delete.csv")%>%
-  select(-STUDY)%>%
-  melt(id.vars="PLOT")%>%
-  cast(PLOT~variable)
 
 #getting TreeLS to work----
 #install.packages('devtools', dependencies = TRUE)
@@ -3988,52 +2823,6 @@ df%>%
 
 
 
-#maybe delete? idk what this was it was just op[en in an unsaved r----
-srpt23<-vrt23%>%
-  mutate(.,srpt=paste0(site,rt,plot,tre))%>%
-  pull(srpt)
-
-srpti<-vrt_Interlude%>%
-  mutate(.,srpt=paste0(site,rt,plot,tre))%>%
-  pull(srpt)
-
-
-srpt23[!(srpti%in%srpt23)]
-
-c(srpti,srpt23)%>%
-  .[duplicated(.)]
-
-#plots 127-0-2, 127-620-5, and 127-620-3 all exist in both interlude and vrt23
-
-srpti[ !srpti %in% srpt23]
-srpt23[ !srpt23 %in% srpti]
-
-srpt23[grepl("127",srpt23)]
-srpt23[substr(srpt23,1,3)==127]
-srpti[substr(srpti,1,3)==127]
-
-
-options(rstudio.help.showDataPreview = FALSE) in your ~/.Rprofile.
-
-
-R.home()
-
-file.edit(file.path("~", ".Rprofile"))
-file.edit(".Rprofile")
-#color viewing , prob delete this later-----
-
-"#002e52"
-"#161f29"
-"#29506a"
-"#26487e"
-"#0e0f3b"
-"#1f305e" #flexfit royal rbg 39,60,118
-ggplot(data=data.frame(x=c(100,200),y=c(1,1),color=c("#002e52","#1f305e")),aes(x=x,y=y),color=color)+
-  geom_point(size=300,aes(color=color))+
-  scale_color_identity(guide = 'legend')+
-  theme(legend.position = "none")
-
-
 #convert state plane to latlong----
 data<-separated_coord%>%
   select(c(long,lat))%>%
@@ -4047,106 +2836,16 @@ latlong
 
 write.csv(file="C:/Temp/wholestandtrees2.csv",latlong)
 #
-#get unique trts in varrate_-----
-read.csv("C:/Users/sabloszi/Desktop/delete.csv",header = T)%>%
-  select(c(ResrcID,Herb,fert_rx,fert_FINAL,GID))%>%
-  subset(ResrcID=="SMIT-RS-00127")%>%
-  cast(.,Herb+fert_rx+fert_FINAL~ResrcID)
-head()
-names()
-select()
-head()
-
 #lidar stuff------
 install.packages("FPCALSpackage")
 library(FPCALSpackage)
 fpc.lidar.app()  
 #dates-----
+#CAN DELETE THIS SECTION IF NEED BE
 set.seed(1)
 as.Date(sample.int(365,24), origin=as.Date("1970-01-01"))%>%sort()
 
-#download randos 8/29-----
-download.file(url="http://forestproductivitycoop.net/fpcdata/fox-rw19-annual-meeting-2015-pdf.pdf/",
-              destfile="C:/Users/sabloszi/Desktop/delete/fox-rw19-annual-meeting-2015-pdf.pdf")
-shell.exec("http://forestproductivitycoop.net/fpcdata/fox-rw19-annual-meeting-2015-pdf/")
-
-
-download.file(url="https://forestproductivitycoop.net/wp-content/uploads/2019/10/Cook_FPC-Intro-CM-2019_Spanish.pdf",
-              destfile="C:/Users/sabloszi/Desktop/delete/Cook_FPC-Intro-CM-2019_Spanish.pdf")
-
-
-s <- session("https://recipes.had.co.nz/")
-
-session_submit(s, filled_form)%>%
-  session_jump_to(., "https://forestproductivitycoop.net/wp-content/uploads/2019/10/Cook_FPC-Intro-CM-2019_Spanish.pdf")%>%
-  read_html%>%
-  write_html(file="Q:/Shared drives/FER - FPC Team/Website/Htmltables/Cook_FPC-Intro-CM-2019_Spanish.html")
-
-session_jump_to("orcshid.gif") %>%
-  session_jump_to("/") %>%
-  session_history()
-
-download_files("https://forestproductivitycoop.net/wp-content/uploads/2019/10/Cook_FPC-Intro-CM-2019_Spanish.pdf")  
-
-#v8 stuff-----
-#pdf_links<-
-session_submit(s, filled_form)%>% 
-  session_jump_to("https://forestproductivitycoop.net/publications/fpc-presentations/2013-october-7-9-annual-meeting-atlanta-ga/")%>%
-  session_follow_link("Summary of Latin America Pine Working Group Projects & Regionwide Studies (pdf)")%>%#Research
-  html_nodes("a[href*='-pdf']")
-html_attr("href")
-
-
-#doanload pdfs chatgpt for loop-----
-#ok so this owkrs with .pdf files.
-pdf_links<-c("http://forestproductivitycoop.net/fpcdata/agenda-latinamerican-pine-and-eucalyptus-contact-meeting-2016-pdf/",
-             "http://forestproductivitycoop.net/fpcdata/allen-fpc-challenges-success-opportunities-pdf/"
-)
-session_submit(s, filled_form)%>% 
-  session_jump_to("https://forestproductivitycoop.net/publications/fpc-presentations/2013-october-7-9-annual-meeting-atlanta-ga/")%>%
-  session_follow_link("Research")%>%#Summary of Latin America Pine Working Group Projects & Regionwide Studies (pdf)
-  read_html()%>%
-  str()
-write_html(file="C:/Users/sabloszi/Desktop/delete/success.html")
-str()
-
-html_node(".pdf")%>%
-  write_disk("C:/Users/sabloszi/Desktop/delete/success.pdf")
-
-
-
-#cant use GET on the -pdf ones b/c its not in session  
-GET("http://forestproductivitycoop.net/fpcdata/allen-fpc-challenges-success-opportunities-pdf/")%>%
-  content()
-write_html(file="C:/Users/sabloszi/Desktop/delete/success.html")
-
-
-
-#orig  good for loop-----
-
-
-GET("https://forestproductivitycoop.net/wp-content/uploads/2019/10/Cook_FPC-Intro-CM-2019_Spanish.pdf",
-    write_disk("C:/Users/sabloszi/Desktop/delete/Cook_FPC-Intro-CM-2019_Spanish.pdf",overwrite=T))
-#c("https://forestproductivitycoop.net/wp-content/uploads/2019/10/Cook_FPC-Intro-CM-2019_Spanish.pdf")
-#pdf_links<-
-
-pdf_links<-"Q:/Shared drives/FER - FPC Team/Website/Htmltables/Events-past-yearbyear-pres.csv"%>%
-  read.csv(encoding="UTF-8")
-pull(link)
-#subet for .dpfs
-pdf_links<-pdf_links[grepl("\\.pdf", pdf_links)]
-
-pdf_links<-pdf_links[!grepl("dropbox", pdf_links)]
-
-wex(pdf_links)
-
-for (pdf_link in pdf_links) {
-  pdf_response <- GET(pdf_link, write_disk(paste0("C:/Users/sabloszi/Desktop/delete/wpdownloads/", basename(pdf_link)),overwrite=T))
-  if (http_status(pdf_response)$category != "Success") {
-    cat("Failed to download:", pdf_link, "\n")
-  }
-}
-#just merge the main table with year by year===-----
+#Merging: make bigcombotable: just merge the main meeting tbl with year by year===-----
 #ok what if we just make massive out of execls?
 
 yby<-read_excel("Q:/Shared drives/FER - FPC Team/Website/Htmltables/Events-past-yearbyear-pres.xlsx",
@@ -4216,262 +2915,13 @@ subset(.,grepl("LiDAR - Bart A",target.yby))%>%
 
 write.csv(.,file="Q:/Shared drives/FER - FPC Team/Website/Htmltables/Events-past-bigcombo.csv")
 view()
-#sr------
-t |> 
-  group_by()
-
-mutate(sstr_segment = str_split(V1, "-", n = 2))|>
-  
-  print()
-#gd-----
-library(qdap)
-library(magrittr)
-t<-  read.table(text="
-V1,V2
-  Video of all presentations and discussionPart 1Part 2,Part 1
-  Video of all presentations and discussionPart 1Part 2,Part 2
-  Background - PDFVideo Soil management and update (pdf)Video,PDF
-  Background - PDFVideo Soil management and update (pdf)Video,Video
-  Background - PDFVideo Soil management and update (pdf)Video,Soil management and update (pdf)
-  Background - PDFVideo Soil management and update (pdf)Video,Video
-",
-                header=T,sep = ",")
-
-#oai----
-t %>%
-  mutate(V2 = str_extract(V1, V2),
-         V1 = str_replace(V1, V2, "")) %>%
-  select(V1, V2)
-
-#practice lag grepl thing-----
-library(qdap)
-library(magrittr)
-t<-  read.table(text="
-V1,V2
-Video of all presentations and discussionPart 1,Part 1
-Video of all presentations and discussionPart 1,Part 2
-Background - PDF,PDF
-Background - Video,Video
-Background - Soil management and update (pdf),Soil management and update (pdf)
-Background - Video,Video
-",
-                header=T,sep = ",")
-dat <- structure(list(V1 = c("  Video of Animals-ElephantRhino", "  Video of Animals-ElephantRhino", "  Audio at loud volume-SirensHornsCrickets", "  Audio at loud volume-SirensHornsCrickets", "  Audio at loud volume-SirensHornsCrickets"), V2 = c("Elephant", "Rhino", "Sirens", "Horns", "Crickets")), class = "data.frame", row.names = c(NA, -5L))
-dat$ans<-mapply(sub, paste0("\\b[A-Za-z]*(", dat$V2, ")[A-Za-z]*\\b"), "\\1", dat$V1)
-str()
-# \\b[A-Za-z]*(Elephant)[A-Za-z]*\\b    \\b[A-Za-z]*(Rhino)[A-Za-z]*\\b   \\b[A-Za-z]*(Sirens)[A-Za-z]*\\b    \\b[A-Za-z]*(Horns)[A-Za-z]*\\b 
-#      "  Video of Animals-Elephant"         "  Video of Animals-Rhino"    "  Audio at loud volume-Sirens"     "  Audio at loud volume-Horns" 
-# \\b[A-Za-z]*(Crickets)[A-Za-z]*\\b 
-#  "  Audio at loud volume-Crickets" 
 
 
 
-'Video of Animals-ElephantCrickets,Elephant'
-'Audio at loud volume-ElephantCrickets,Crickets'
-'Audio at loud volume-ElephantCrickets,Elephant'
 
-t%>%  
-  split(.,.$V1)%>%  
-  lapply(.,function(x){(unique(x$V2))})%>%
-  lapply(.,function(y){mgsub(pattern=y[[1]],replacement="",names(y))})
-
-read.table(text="
-V1,V2
-  Video of Animals-Elephant,Elephant
-  Video of Animals-Rhino,Rhino
-  Audio at loud volume-Sirens,Sirens
-  Audio at loud volume-Horns,Horns
-  Audio at loud volume-Crickets,Crickets
-",header=T,sep = ",")
-
-#unzp-----
-unzip("Q:/Shared drives/FER - FPC Team/Website/Htmltables/wordpressdownloads/mlfd-forestproductivitycoop3.zip")
-#seleniooooooooooooooooom-----
-library(RSelenium)
-remDr <- remoteDriver(
-  remoteServerAddr = "localhost",
-  port = 4445L,
-  browserName = "firefox"
-)
-
-remDr$navigate("https://forestproductivitycoop.net/publications/fpc-presentations/2004-advisory-council/")
-docker-machine ip  
-
-#downloads------
-#' Download multiple files, in parallel
-#'
-#' For each file, a list of URLs can be given, and they are tried one
-#' by one.
-#'
-#' If a `<filename>.etag` file exists, then it is used to check if the
-#' download is needed, with a HTTP HEAD request.
-#'
-#' @param downloads Named list. The names are the paths for the target
-#'   files. Each list element is a character vector of URLs to try.
-#'
-#' @keywords internal
-#' @importFrom curl new_pool curl_fetch_multi multi_run new_handle
-#'   handle_setopt parse_headers
-
-download_files <- function(downloads) {
-  
-  result <- vector(mode = "list", length(downloads))
-  etags <- get_etags_for_downloads(downloads)
-  
-  make_callbacks <- function(which) {
-    force(which)
-    last_try <- 0
-    ## This is the etag for HEAD, and NULL for GET
-    expected_etag <- NULL
-    last_verb <- "GET"
-    
-    callbacks <- list(
-      done = function(resp) {
-        if (is_success(resp)) {
-          result[[which]] <<- downloads[[which]][[last_try]]
-          target <- get_target(downloads, which, last_try)
-          if (last_verb == "GET") {
-            writeBin(resp$content, target)
-            write_etag_for_path(target, get_etag_from_response(resp))
-          } else {
-            Sys.setFileTime(target, Sys.time())
-          }
-        } else {
-          try_next()
-        }
-      },
-      fail = function(err = "no urls specified") {
-        result[[which]] <<- make_download_error(err)
-        try_next()
-      }
-    )
-    
-    try_next <- function() {
-      if (last_try == length(downloads[[which]]) && last_verb == "GET") {
-        return()
-      }
-      if (last_verb == "GET") last_try <<- last_try + 1
-      
-      h <- new_handle()
-      url <- downloads[[which]][[last_try]]
-      if (last_verb == "GET" && !is.na(etag <- etags[[which]][[last_try]])) {
-        last_verb <<- "HEAD"
-        expected_etag <<- etag
-        handle_setopt(h, customrequest = "HEAD", nobody = TRUE)
-      } else {
-        last_verb <<- "GET"
-        expected_etag <<- NULL
-      }
-      
-      curl_fetch_multi(url, done = callbacks$done, fail = callbacks$fail,
-                       pool = pool)
-    }
-    
-    is_success <- function(resp) {
-      if (resp$status_code != 200) return(FALSE)
-      if (is.null(expected_etag)) return (TRUE)
-      etag_new <- get_etag_from_response(resp)
-      identical(etag_new, expected_etag)
-    }
-    
-    shedule_next_http <- function(try) {
-      h <- new_handle()
-      if (!is.na(etags[[which]][[try]])) {
-        expected_etag <<- etags[[which]][[try]]
-        handle_setopt(h, customrequest = "HEAD", nobody = TRUE)
-        
-      } else {
-        expected_etag <<- NULL
-      }
-    }
-    
-    callbacks
-  }
-  
-  pool <- new_pool()
-  for (d in seq_along(downloads)) make_callbacks(d)$fail()
-  
-  multi_run(pool = pool)
-  structure(result, names = names(downloads))
-}
-
-get_etags_for_downloads <- function(downloads) {
-  etags <- vector(mode = "list", length(downloads))
-  targets <- get_targets_for_downloads(downloads)
-  for (i in seq_along(downloads)) {
-    e <- vapply(targets[[i]], get_etag_for_path, character(1))
-    etags[[i]] <- rep_len(e, length(downloads[[i]]))
-  }
-  etags
-}
-
-get_target <- function(downloads, which, try) {
-  if (is.null(names(downloads[[which]]))) {
-    names(downloads)[which]
-  } else {
-    names(downloads[[which]])[try]
-  }
-}
-
-get_targets_for_downloads <- function(downloads) {
-  lapply(seq_along(downloads), function(i)  {
-    if (is.null(names(downloads[[i]]))) {
-      names(downloads)[i]
-    } else {
-      names(downloads[[i]])
-    }
-  })
-}
-
-get_etag_from_response <- function(resp) {
-  line <- grep("^etag:", ignore.case = TRUE, parse_headers(resp$headers),
-               value = TRUE)
-  sub("^etag:[ ]*", "", line, ignore.case = TRUE)
-}
-
-get_etag_file <- function(path) {
-  file.path(dirname(path), "_cache", paste0(basename(path), ".etag"))
-}
-
-get_etag_for_path <- function(path) {
-  ## there is a warning if the file does not exist
-  tryCatch(
-    suppressWarnings(readLines(get_etag_file(path))[[1]]),
-    error = function(e) NA_character_
-  )
-}
-
-write_etag_for_path <- function(path, etag) {
-  etag_file <- get_etag_file(path)
-  dir.create(dirname(etag_file), recursive = TRUE, showWarnings = FALSE)
-  writeLines(etag, etag_file)
-}
-
-make_download_error <- function(msg) {
-  structure(
-    list(message = msg, call = NULL),
-    class = c("download_error", "error", "condition")
-  )
-}  
-
-#selenium-----
-library(RSelenium)
-selServ <- selenium(verbose = FALSE)
-selServ$process
-selServ$log(iedrver = "latest")
-RSelenium::checkForServer()
-rsDriver(Name = "firefox")
-
-remDr <- remoteDriver$new()
-remDr <- remoteDriver(
-  remoteServerAddr = "localhost",
-  port = 4445L,
-  browserName = "firefox"
-)
-remDr$open()
-
-remote
-#untar-----
+#Downloads/extractions: Untar Rachel's wp dwnlds and compare it with my mlfd dwnlds-----
+#Update 11/23 i think i already moved the tar ones to the google drive but if not this is a good way to start seeing which ones arent in the googledrove
+#this is how I extracted the stuff rachel downloaded and put into dropbox
 untar("C:/Users/sabloszi/Dropbox (FPC)/FPC Team Folder/Publications/Forestproductivitycoop.net docs/download-managers-backup.tar",
       exdir="C:/Users/sabloszi/Dropbox (FPC)/FPC Team Folder/Publications/Forestproductivitycoop.net docs/untar",verbose = T)
 
@@ -4493,26 +2943,61 @@ lkb<-pdf_links%>%pull(linkbase)
 tlsb%in%lkb%>%
   sum()# so they do match a ton of them. lets make a way to get the ones we need into the folder where tey should be
 
+#As of 11/2023 you can see what got downloded into either the dropbox folder rachel downloaded,...
+#set wd to the main folder rachel downloaded from wp
+setwd("C:/Users/sabloszi/Dropbox (FPC)/FPC Team Folder/Publications/Forestproductivitycoop.net docs/untar")
+#Or the gdrive mlfd one Sean downloaded:
+setwd("Q:/Shared drives/FER - FPC Team/Website/Htmltables/wordpressdownloads/mlfd-forestproductivitycoop2")
+
+
+#final .net formatting to merge googled links with meeting info, don't delete-----
+
+#So at one point i was merging like this: (tbl was an old version of the .net years' page tables)
 #merge(tbl,googledmerge,by.x="linkbase",by.y="name",all.x=T,all.y=F,sort=T)%>%
 #googledmerge has the name as it appeared in the .net link so this works
 #so, if I put files in the google drive with titles that match whats in the yby (equibalend to tbl above), then i can do this same merge
-#therefore, first step is get all the files from the dropbox out of their hierarchy
+#therefore, at one point I the next step was get all the files from the [I assume tar] dropbox out of their hierarchy
+#... and then put them into the googledrive folder
 
-
-#tarf is
+#So once everything's in the google drive folder, you can merge the meeting table info with the links.
+#Therefore you will need this in a little bit as the think to merge onto:
 pdf_links<-"Q:/Shared drives/FER - FPC Team/Website/Htmltables/Events-past-yearbyear-pres.csv"%>%
   read.csv(encoding="UTF-8")
-#you will need this in a little bit as the think to merge onto
 
-setwd("C:/Users/sabloszi/Dropbox (FPC)/FPC Team Folder/Publications/Forestproductivitycoop.net docs/untar/dlm_uploads")
-list.files("C:/Users/sabloszi/Dropbox (FPC)/FPC Team Folder/Publications/Forestproductivitycoop.net docs/untar/dlm_uploads",recursive = T)%>%
-  file.rename(.,basename(.))
+#General architecture of if you wanted to move all to the base folder (wd folder)
+  file.rename(list.files,basename(PUTlist.filesBACKHERE))
 
-setwd("C:/Users/sabloszi/Dropbox (FPC)/FPC Team Folder/Publications/Forestproductivitycoop.net docs/untar/dlm_uploads/2016/12")
+# Replace the special characters with their corresponding replacements
+fixed_strings <- str_replace_all(strings, c(
+  '├▒'= "n" ,
+  "├í"="a",
+  '├⌐'="e",
+  '├│'="o"
+))
 
+#make named char vector of effed spanish characters
+spanc<-c('├▒'= "n" ,
+          "├í"="a",
+          '├⌐'="e",
+          '├│'="o")
+
+#ok test run
 "13-Nestor-Ria├▒o-Fisiologia-Egrandis.pdf"%>%
   gsub("\\.pdf$","-pdf",.)%>%
-  tolower()%>%
+str_remove_all(.,spanc)%>%  
+  tolower()
+
+#ok now what happens same thing in googldmerge?
+googledmerge%>%
+  subset(grepl("├",name))%>%
+  mutate(.,name=gsub("\\.pdf$","-pdf",name))%>%
+  mutate(.,name=gsub("-pdf-pdf$","-pdf",name))%>%#some have pdf in the name already but we want them to all end up with just one "-pdf"
+  mutate(.,name=str_remove_all(name,spanc))%>%  
+  mutate(.,name=tolower(name))%>%
+merge(.,read.csv(file="Q:/Shared drives/FER - FPC Team/Website/Htmltables/Events-past-yearbyear-pres4.csv"),
+      by.x="name",by.y="linkbase",all.x=T,all.y=F)%>%
+  wex()
+
   file.rename(from=paste0("C:/Users/sabloszi/Dropbox (FPC)/FPC Team Folder/Publications/Forestproductivitycoop.net docs/untar/dlm_uploads/13-Nestor-Ria├▒o-Fisiologia-Egrandis.pdf"),
               to=paste0(getwd(),"/",.))
 
@@ -4522,118 +3007,395 @@ file.rename(from=paste0("C:/Users/sabloszi/Dropbox (FPC)/FPC Team Folder/Publica
 
 
 
-filerename2=function(from){ 
-  file.rename(from=from,
-              to=paste0(getwd(),"/",tolower(gsub("\\.pdf$","-pdf",basename(from)))))
-}
-setwd("C:/Users/sabloszi")
 
-filerename2((paste0(getwd(),"/",list.files(getwd()))))
+#D1
 
-googledmerge2<-googledmerge%>%
-  mutate(.,name=gsub("-pdf\\.pdf$","-pdf",name)  )
+# remove punctuations characters 
+str_replace_all(")", "[[:punct:]]", "")
 
-f2<-merge(pdf_links,googledmerge2,by.x="linkbase",by.y="name",all.x=T,all.y=F,sort=T)%>%
-  mutate(., glink=paste0("https://drive.google.com/open?id=",id))#%>%
+grepl("[[:punct:]]","├")
+grepl("[^[\\-]]&[^[:alnum:]]","a-")
+grepl("[^[:alnum:]]","a-")
 
 
-f2%>%write.csv(.,file="Q:/Shared drives/FER - FPC Team/Website/Htmltables/Events-past-yearbyear-pres4.csv")
+str_replace_all(string, "[^[:alnum:]]", "")
+grepl("^[[:alnum:]_-]+$","3a-_A") #find rows thta have anything but ª and alphanumeric and _ and -
+#pick up gettin gthis subset of gogldrive files, then put their things on a table
+#MD1
+
+#11/8
+#need to do the spchars and then also replace periods and then 
+#so options are 
+#1 rbind the few that this spanc stuff fixes onto one of the yby htings like the pres4
+#2 Restore the problem spanish character lines to pres4 using meeetingstablehtmllinktargets
+#3 maybe use the bigcombotable for these messed up ones in pres4?
+#anyways goal is take pres4 and fix the effed 2017 and others with weird characters by stealing from OR merging with meeetingstablehtmllinktargets
 
 
-
-
-drive
-#source of older pdfs:
-#C:\Users\sabloszi\Dropbox (FPC)\FPC Team Folder\Publications\Forestproductivitycoop.net docs\untar\dlm_uploads
-#pick up merging the yby (pdf_links) with the googledmerge and then get that into that main meetingshtmltargest.gsheet thing. 
+#so. which csvs have broken cells?
+#meetingtabletargethtml doesnt, but it is missing lots of googleinks
+#pres2 and pres3 do
+#bigcombotable doesnt, and has no google links
+#what is the minimum we need forom pres2 or 4?
+#ok first what can we even get from pres2 or 4? well allot ar effed so can we select against the noneffed?
+#then we can get anything.
+#can i just select against "link_target" that doesnt have (,) format?
 
 #
+#https://forestproductivitycoop.net/?page_id=13306 are the only ones we need google links in the new folder? 
+#no, there's all the oens with the spancharacters,
+#ones with "--pdf" at the end
+# a few with perionds that got changed to "-"
+####jjq.ecofis.anualmeeting.2017-pdf becomes jjq-ecofis-anualmeeting-2017-pdf
+#lots that i genuinely cant find like k-carryover-184202
+#some that mabe had spaces or special charcters when uplodad so they become laprw2-selecci%c2%a6n-del-dise%c2%a6o-de-plantaci%c2%a6n_huape-pdf; this one is a pptx in dropbox with both space and periods, but no pdf
+######tyhis one in particular exists in 3 places: 
+######1. the copy of the dropbox meetings folders as a pptx and as a pdf (so two places in one) in fpc fer team google drive, and 
+######2. in mlfd2 as laprw2.-selecci┬ªn-del-dise┬ªo-de-plantaci┬ªn_huape-pdf and
+######3. the copy of the dropbox meetings folders as only          a pdf                 what brody put in fpc  google drive, and 
 
-goo<-read.csv("C:/Users/sabloszi/Desktop/meetingtablehtmllinkstargets.csv",header = T)%>%
-  #names()%>%
-  select(c(glink,indyby))%>%
-  merge(f2,.,by="indyby",all=T,suffixes=c(".f2",".mt"))
+#workspace for final websitetable stuffB=====================================================================D-----
 
-wex(goo)
-names(f2)
-vecs <- list(
-  c(NA, NA, 3, 22, 5),
-  c(1, 2, NA, 33, 5)
+#0. some stuff to see what's going on with pres2
+read.csv(file="Q:/Shared drives/FER - FPC Team/Website/Htmltables/Events-past-yearbyear-pres2.csv",header=T)%>%
+  select(c(indyby,linkbase,glink.f2,glink.mt,x))%>%
+  #subset(.,grepl("--pdf",linkbase))%>%# note there's none with this format in the website tables, its just a filename thing in ggoledrive
+  subset(.,grepl("\\.",substr(linkbase,1,nchar(linkbase)-4)))%>% #so theres not many with periods outside the end and it doesnt matter bc the googledrive seems to have that tooo
+  pull(linkbase)
+#note pres2 has meeting classifcaation stuff but is missing lots of glinks
+
+#0. some stuff to see what's going on with pres4
+read.csv(file="Q:/Shared drives/FER - FPC Team/Website/Htmltables/Events-past-yearbyear-pres4.csv",header=T)%>%
+  select(c(indyby,linkbase,glink))%>%
+  #subset(.,grepl("--pdf",linkbase))%>%# note there's none with this format in the website tables, its just a filename thing in ggoledrive
+  subset(.,grepl("\\.",substr(linkbase,1,nchar(linkbase)-4)))%>% #so theres not many with periods outside the end and it doesnt matter bc the googledrive seems to have that tooo
+  pull(linkbase)
+
+
+#1. get almost done pres table but it has cells messed up by spanchars
+read.csv(file="Q:/Shared drives/FER - FPC Team/Website/Htmltables/Events-past-yearbyear-pres4.csv",header=T)%>%
+  subset(is.na(link_target)|!base::startsWith(link_target,"("))->prescellseffed
+
+#2 get almost done pres table but w/o the messed up cells
+read.csv(file="Q:/Shared drives/FER - FPC Team/Website/Htmltables/Events-past-yearbyear-pres4.csv",header=T)%>%
+  subset(base::startsWith(link_target,"("))->prescellsOK
+
+
+
+#3 is there anything to salvage from prescellseffed?
+wex(prescellseffed)
+#Yes. We need to get the linkparent and linkbase for sure, might as well get indyby
+prescellseffeds<-prescellseffed%>%select(c(indyby,linkparent,linkbase))
+
+#so now this subset needs its google links back as 
+#do go ahead and get ones that are "-pdf.pdf" format switched bc those arent good
+googledmerge2<-
+  googledmerge%>%
+  mutate(.,name=gsub("-pdf\\.pdf$","-pdf",name)  )%>%
+  mutate(.,name=
+      # Replace the special characters with their corresponding replacements bc the website tables dont have the special characters
+    str_replace_all(name, c(
+      '├▒'= "n" ,
+      "├í"="a",
+      '├⌐'="e",
+      '├│'="o",
+      '┬ª'="%c2%a6",
+      "--pdf"="-pdf"
+    ))           )
+
+#merge googledmerge2 and prescelleffeds; get rid of ones w/o google links
+prescellseffeds1<-
+  merge(prescellseffeds,googledmerge2,by.x="linkbase",by.y="name",all.x=T)%>%
+  subset(!is.na(id))
+
+#merge googledmerge2 and prescelleffeds; keep only ones w/o glinks
+prescellseffeds2<-
+merge(prescellseffeds,googledmerge2,by.x="linkbase",by.y="name",all.x=T)%>%
+  subset(is.na(id))
+#ok theres a few that still wont merge; make a special googleid table with no periods for the few that are missing periods in the html tables
+googledmerge3<-  googledmerge2%>%
+  #mutate(.,nam=substr(name,1,10))%>% #get first few characters
+mutate(.,name=gsub("\\.", "", name))
+
+#get ones that still dont have googleids and fix them
+prescellseffeds2<-prescellseffeds2%>%
+select(-id)%>%
+    #mutate(.,linkba=substr(linkbase,1,10))%>%
+  merge(.,googledmerge3,by.x="linkbase",by.y="name",all.x=T)
+
+#put them back togeteher and write over prescelleffeds
+prescellseffeds<-rbind(prescellseffeds1,prescellseffeds2)
+
+#note need to eventually put these back somewhere : put this these need need to be moved need to move
+#overall 30k foot view of links that need fixing:
+#                            
+#dm (domain)              total 
+#docs.google.com               1 #subset(dm=="docs.google.com") #keep this, it still works
+#drive.google.com            530 #these are golden
+#forestproductivitycoop.net   21 #these need fixing if possible but not sure where the files are; also maybe some are mp4s?
+#mymediasite.online.ncsu.edu   2 #subset(dm=="mymediasite.online.ncsu.edu") #can get rid of these, they are obsolete and there are only 2
+#www.dropbox.com              19 #subset(dm=="www.dropbox.com") #can get rid of these, they are deleted files that i think i messed up; only 26 anyways
+#youtu.be                     25 #these should all be fine, haven't checked all but probably ok
+
+#And then specific detailed view of links that need fixing for a handful of them:
+  # Rubilar_RW23-CM-Intensidad-y-Frecuencia-8-a https://forestproductivitycoop.net/?page_id=13306" fnas
+  #rw7b-respuesta-a-la-preparaci%c2%a6n-de-suelo-y-cm_venado-pdf
+  #laprw2-selecci%c2%a6n-del-dise%c2%a6o-de-plantaci%c2%a6n_huape-pdf
+#Presentation
+#197 Update on strategic planning results from 2020 & Estrat\xe9gia para a Am\xe9rica Latina 2021 - CookUpdate on strategic planning results from 2020 & Estrat\xe9gia para a Am\xe9rica Latina 2021 - Carter
+#Speaker  Date       Time indyby
+#197 Cook, Carter, Rubilar, Campoe 4-May 9:30-10:00    190
+#target
+#197 Update on strategic planning results from 2020 & Estrat\xe9gia para a Am\xe9rica Latina 2021 - Cook
+#..... and then any vieos in this folder need to be linked
+#https://drive.google.com/drive/folders/1YQjWMTqHHYNQlzuoQ0-dm5lmGSOaaWce?usp=drive_link
+
+#also indyby 156 and 710 don;t have meetnig-level (bigcombo) info for some reason so add that.
+
+
+
+#also need to merge glinks onto ones that werent effed cells
+#first fine files in google mlfd that have weird chars
+
+#works dont fuck but delete any time after glinks added to htmltables
+data.frame(n=(1:3),
+JJ=c("assorted","sfas├▒","asfasf"))%>%
+subset(unname(apply(sapply(JJ,str_detect,c('├▒',"├í",'├⌐','├│','┬ª',"--pdf")),2,any)))
+
+#so fine files in google mlfd that have weird chars
+googledmerge4<-googledmerge%>%
+  subset(unname(apply(sapply(name,str_detect,c('├▒',"├í",'├⌐','├│','┬ª',"--pdf")),2,any)))%>%
+  mutate(.,name=
+           # Replace the special characters with their corresponding replacements bc the website tables dont have the special characters
+           str_replace_all(name, c(
+             '├▒'= "n" ,
+             "├í"="a",
+             '├⌐'="e",
+             '├│'="o",
+             '┬ª'="%c2%a6",
+             "--pdf"="-pdf"
+           ))           )
+
+#now get spechail char ok cells table
+prescellsOK%>%
+  merge(googledmerge4,.,by.x="name",by.y="linkbase",all.x=T,all.y=F)%>%
+  head()
+#now get no special char ok cells table
+prescellsOKchars%>%pull(indyby)
+
+#"03-rw18-field-presentation-contact-meeting-2015--pdf" in gdrive needs to match with "03-rw18-field-presentation-contact-meeting-2015-pdf"
+prescellsOK%>%
+  subset(.,grepl("Nestor",linkbase))
+
+
+prescellsOK%>%
+  view()
   
-)
-coalesce(!!!vecs)
-
-pdf_links%>%
-  subset(.,grepl("google",glink.mt))%>%
-  dim()
-
-mutate(.,x=dplyr::coalesce(glink.mt,glink.f2))%>%
-  write.csv(.,file="Q:/Shared drives/FER - FPC Team/Website/Htmltables/Events-past-yearbyear-pres2.csv")
-
-#keep only certain columns in a list works dont mess with this delete-----
-#auto
-lis=list(mtcars,chickwts)
-#get list of names by df, this is the mgt columns
-nms2kp<-list(mtcars=c("mpg","cyl"),chickwts=c("weight"))
-#add more names to keep, this is like the merge columns
-nms2kpj<-list(mtcars=c("disp","drat"),chickwts=c())
-nms2kp<-lapply(names(nms2kp),function(i){
-  nms2kp[[i]]<-c(nms2kp[[i]],nms2kpj[[i]])
-})
 
 
-#make the list names a separate thing for dbfl
-names(lis)=c("mtcars","chickwts")
-names(nms2kp)=c("mtcars","chickwts")
-dbfllsnms<-names(lis)
-lis<-lapply(names(lis),function(i){
-  lis[[i]]<-select(lis[[i]],nms2kp[[i]])
-})
-names(lis)<-dbfllsnms
+#ok a bunch that still dont have glinks are in  eetings folders. can i move them?
+from<-"Q:/Shared drives/FER - FPC Team/Meetings/Strategic/2020/Murals/Day 4 Final Topics.pdf"
+to<-"Q:/Shared drives/FER - FPC Team/Website/Htmltables/wordpressdownloads/mlfd-forestproductivitycoop2/Day 4 Final Topics.pdf"
+file.copy(from=from,to=to)
+#file.rename(from=to,to=from)
+
+#great so that works, lets try to do it on a batch:
+#1.make the main table:
+pdlks<-rbind.fill(prescellsOK,prescellseffeds)
+#there are blanks, make them NA's to make subsetting stuff easier
+pdlks[pdlks==""] <- NA
 
 
-#gcrap-----
-  
 
-  wex()
-  subset(.,is!=YEAR_EST_2)%>%
-  
-#Act_Date is great, it's always a date or NA. don't need Method (which is herb method) or Activity (alwayus Release)
-#FERT_YEAR is great, it's always a date or NA. it's never a year when FERT_METH is not na and vice versa
-#THIN_YEAR is great, it's always a date or NA. it's never a year when THIN_TYPe is not na and vice versa
+#now get ones that have no link still and should have one
+pdlks1<-#part of final that had the "--pdf" thing
+pdlks%>%
+  subset(.,is.na(id))%>% #ones that dont have glinks now
+    subset(is.na(link_target)|link_target!="(, )")%>% #these never had anylinks
+subset(!grepl("youtu",link))%>% #dont want videios
+  subset(!is.na(linkbase))%>%
+    mutate(.,linkbase=
+      # Replace the special characters with their corresponding replacements bc the file names dont have specail chars
+    str_replace_all(linkbase, c('%20'= " ")))%>%
+  subset(.,grepl("pdf",linkbase))%>%
+  #subset(grepl("2016-euc-wg-contact-meeting-field-trip-pctures",linkbase))%>%
+  merge(.,googledmerge2,by.x="linkbase",by.y="name")%>%
+  mutate(.,id=coalesce(id.y,id.x))%>%
+  select(-c(id.x,id.y))
+#make pdkls even better
+pdlks44<-
+pdlks%>%
+  subset(.,!indyby%in%pdlks1$indyby)%>%
+      rbind(.,pdlks1)%>% #... and addd the fixed rows back so no need to coalesce over all 700+ rows
+  tail()#then get rid of rows you fixed in pdkls1 
+#anythign still missing from pdlks?
+pdlks44%>%
+  wana
+#yea somehow just rbinded some rows that only have indby, linkbase, glink, and linkparent
+#ok right that was on purpose bc the cells were effed; need to get them from bigcombo table
+#what distingueshes these?
+#easy, they have NA link_target; so read in bigcombo and rbind a subset
+bigcombo<-read.csv("Q:/Shared drives/FER - FPC Team/Website/Htmltables/Events-past-bigcombo.csv")
+#now subset pdlks44 so no NA linktarg:
+pdlks45<-
+  pdlks44%>%
+  subset(.,!is.na(link_target))%>%
+select(-X)  
+#and get the one with the na linktarg so you can merge with bigcombo, at least a small subset of it that is
+pdlks46<-
+  pdlks44%>%
+  subset(.,is.na(link_target))%>%
+  select(-X)  
+#ok just need to merge the ones with stuff
+pdlks46<-pdlks46[,!apply(pdlks46,2,function(x){all(is.na(x))})]
+#then get bigcombo just for those in pdlks45 with no linktarge
+bigcombosm<-bigcombo[!bigcombo$indyby%in%pdlks45$indyby,]%>%
+  rename("Date"=Date.yby,"target"=target.yby)%>%
+  select(names(.)[names(.)%in%names(pdlks45)])%>%
+  select(-glink)
+bigcombosmlks<-merge(bigcombosm,pdlks46,by="indyby")
 
-  
-  
-    dim()
-  Method Act_Date
-Year_Est
-YEAR_EST_2
-
-  wex()
-
-
-wael("./Workspace_Sean/GIS/Files/Company_G")
-
-#randos-----------
-#delete eventually, this was to do some qc on the silv site index stuff
-dbfcf<-list.files(path ="./Workspace_Sean/viewingdelete/")
-#make a list (takes like 5 sec on home pc, 1 mississippi sec on workpc)
-dbfcf<-dbfcf[-12]
-dbflf<-lapply(dbfcf,function(x){read.csv(paste0(getwd(),"/Workspace_Sean/viewingdelete/",x),colClasses = "num2")})
-names(dbflf)<-dbfcf%>%gsub("\\.csv","",.)
-
-lapply(dbflf,dim)
-
-set.seed(6660)
-subs<-read.csv("silv.csv")%>%
-  mutate(.,co=substr(compID,1,3))%>%
-split(.,.$co)%>%
-lapply(.,function(x)
-{slice_sample(x,n=5)}
+#if i rbind and fill will that be done?
+filenamsp<-
+rbind.fill(pdlks45,bigcombosmlks)%>%
+select(-c(glink,link_target))%>% #glink is superseded by id; all info in the original link_ is in column link, and then everything that was in _target is either in Presentation or target
+arrange(indyby)%>%
+  subset(.,is.na(id)&!is.na(linkbase))%>%
+  subset(!grepl("youtu",link))%>%
+  subset(!grepl("mp4",link))%>%
+pull(linkbase)%>%
+    str_replace_all(.,
+                  c("%20"=" ",
+                    "\\?dl=0"="")
   )
+#no, theres still these that are missing glinks. filenamps was the problem linkbases that still dont have ids
 
-rbindlist(subs,idcol = "co")%>%
-  wex()
-  #github-----
+#So i moved a few files with some code i can now forget i think.
+#that doesnt add anything to the 
+#but i want to see if i can salvege/match some more of the ones in linkbase 
+#so first lets create another step data-
+pdlks47<-
+  rbind.fill(pdlks45,bigcombosmlks)
+
+#now lets see what we can rbind or merge to that or to a subset of that
+pdlks47<- pdlks47%>%
+  select(-c(glink,link_target))%>% #glink is superseded by id; all info in the original link_ is in column link, and then everything that was in _target is either in Presentation or target
+  arrange(indyby)
+
+#so i think part of the answer is the gmertge4 bc i never used it to put things on a main thing  
+pdlks49<-googledmerge4%>%
+  mutate(.,name=tolower(
+           str_replace_all(name,
+                           c("\\.pdf"="-pdf",
+                             "-pdf-pdf"="-pdf",
+                             "\\."=""
+                             )
+           )
+  ))%>%
+merge(.,pdlks48,by.x="name",by.y="linkbase",all.x=T,all.y=F)%>%
+subset(!is.na(indyby))%>%
+  rename("id"=id.x)%>%
+  select(-id.y)%>%
+  rename("linkbase"=name)
+
+#now put 49 on 47; 50 is almost golden
+pdlks50<-pdlks47[!pdlks47$indyby%in%pdlks49$indyby,]%>%
+rbind(.,pdlks49)%>%
+  arrange(as.numeric(indyby))
+
+#anything else easy? prob not, caution about getting into more
+pdlks48<- pdlks50%>%
+  subset(.,is.na(id)&!is.na(linkbase))%>%
+  subset(!grepl("youtu",link))%>%
+  subset(!grepl("mp4",link))
+
+#ok maybe one more bro
+googledmerge5<-
+  googledmerge%>%
+  mutate(linkbase2=str_replace_all(name,"[^[:alnum:]]",""))%>%
+  mutate(linkbase2=tolower(str_replace_all(linkbase2,"pdf","")))#%>%
+  pull(linkbase2)%>%sort()%>%wex()
+  
+  #ok last one i swear
+pdlks481<-pdlks48%>%
+  mutate(linkbase=gsub("%20","",linkbase))%>%
+  mutate(linkbase=gsub(fixed =T, ".pdf?dl=0","",linkbase))%>%
+#[1] "Day%202%20Veg%20Management.pdf?dl=0" 
+  mutate(linkbase2=str_replace_all(linkbase,"[^[:alnum:]]",""))%>%
+mutate(linkbase2=tolower(str_replace_all(linkbase2,"pdf","")))%>%
+  merge(.,googledmerge5,by="linkbase2",all.y=F)%>%
+  rename("id"=id.y)%>%
+  select(-c(id.x,linkbase2,name))
+#yes 14 more rows!
+#why the fuck didnt i start with that  alnum shit?
+  
+#nayways rbind this to the subset inverse of pgdlks50
+pdlks51<-pdlks50[!pdlks50$indyby%in%pdlks481$indyby,]%>%
+  rbind(.,pdlks481)%>%
+  arrange(as.numeric(indyby))
+#is this ok?
+wana(pdlks51)
+#yea that;s gold
+#coalse the youtube etc links and the gids
+pdlks52<-pdlks51%>%
+  mutate(.,dm=domain(link),ind=1)%>%
+  #subset(dm=="www.dropbox.com") #can get rid of these, they are deleted files that i think i messed up; only 26 anyways
+  #subset(dm=="mymediasite.online.ncsu.edu") #can get rid of these, they are obsolete and there are only 2
+  #subset(dm=="docs.google.com") #keep this, it still works
+  mutate(., linknew=#first make glinks out of any that have g ids
+           ifelse(!is.na(id),paste0("https://drive.google.com/open?id=",id),NA))%>%
+  mutate(.,linknew=coalesce(linknew,link))%>%
+  mutate(.,dm=domain(linknew),ind=1)
+#now get the table that has all the meeting level info, not just the yearbyyear/presentation level info
+bigcombo<-read.csv("Q:/Shared drives/FER - FPC Team/Website/Htmltables/Events-past-bigcombo.csv")
+
+#so some last formatting thins and putt with the meeting info
+  bigcombo%>%
+  rename("Date"=Date.yby,"target"=target.yby)%>%
+  select(indyby,names(.)[!names(.)%in%names(pdlks52)])%>%
+    select(-glink)%>%
+merge(.,pdlks52,by="indyby",all=T)%>%
+    arrange(as.numeric(indyby))%>%
+    select(-c(ind,id,dm))%>%
+    write.csv("Q:/Shared drives/FER - FPC Team/Website/Htmltables/meetingtablehtmllinkstargets.csv",row.names = F)
+#now get an second version that is like the goglesheet  meetingtablehtmllinkstargets.gsheet, "Q:\Shared drives\FER - FPC Team\Website\Htmltables\meetingtablehtmllinkstargets.gsheet", https://docs.google.com/spreadsheets/d/1Z1PGyYdzn5W2_jbypl1uwMoyb4XZ3oLKgGs94oZPmUM?usp=drive_fs 
+twt<-  read.csv("Q:/Shared drives/FER - FPC Team/Website/Htmltables/meetingtablehtmllinkstargets.csv",header = T)
+
+#Ok now read it back in to select only the columns that go in the googlesheet; 
+twtf<-twt%>% #twtf is "that writeable table final" as in final for googlesheets
+  mutate(Presentation2=Presentation)%>%#make a placeholder copy bc the googlesheet has a linked version of the same column
+  mutate(Speaker.list="")%>% #another plaeholder for eventual list??
+  mutate("Speaker.old"=Speaker)%>% #these need to be tidied up but leaving them in as old speaker bc its the only place that info exists now
+  select(c(FPC.Meeting2,Year,Location,Presentation,Presentation2,Speaker,linknew,Date.main,Date,Time,indmain,indyby,FPC.Meeting,Presentation.concat,target,Speaker.list,Speaker.old))
+  #note this just leaves out  "linkbase"      "linkparent"   "link"          "Working.Group"; dont need these for the website
+  #see here are the columns in the gsheet as of 11/12/23:
+  
+#so now lets make a connection to the main gsheet the .org meetings table links to and write to there:
+#meetingtablehtmllinkstargets is #https://docs.google.com/spreadsheets/d/1Z1PGyYdzn5W2_jbypl1uwMoyb4XZ3oLKgGs94oZPmUM?usp=drive_fs which is "Q:\Shared drives\FER - FPC Team\Website\Htmltables\meetingtablehtmllinkstargets.gsheet"
+mtb<- ("https://docs.google.com/spreadsheets/d/1Z1PGyYdzn5W2_jbypl1uwMoyb4XZ3oLKgGs94oZPmUM/edit#gid=0")
+sheet_write(twtf, mtb, sheet = "meetingtablehtmllinkstargets")
+#If successful this should tell you this in the Console:
+#"✔ Writing to meetingtablehtmllinkstargets."
+#"✔ Writing to sheet meetingtablehtmllinkstargets."
+
+  
+#Wbesite table Final steps are some QC========------
+#make a random subset of the meetings pres that has two links per meeting (for meetings with links)
+setwd("Q:/Shared drives/FER - FPC Team/Website/Htmltables/")
+set.seed(6660)
+subs<-
+  twt%>%
+  subset(!linknew=="")%>%#just want ones with linkes
+split(.,.$indmain)%>%
+lapply(.,function(x)
+{slice_sample(x,n=2)}
+  )
+#then write it
+rbindlist(subs,idcol = "indmain")%>%
+  write.csv("meetingtablehtmllinkstargets_randomsubsetdelete.csv")
+
+#github-----
 setwd("Q:/My Drive/Studies/FPC/Scripts")
+#load(".RData")
 wael()
+
