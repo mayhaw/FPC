@@ -1,7 +1,10 @@
-source("Q:/My Drive/Library/datlibmgr.R")
+#source("Q:/My Drive/Library/datlibmgr.R")
 #rwdb gold------
 #just define the connection to the db from R; doesn't create an object in the global env that has actual rwdb data in it
+#FRANCE
 dbpath=normalizePath(paste0(gsub("\\\\Documents","",Sys.getenv("HOME")),("\\Dropbox (FPC)\\FPC Team Folder\\Static RWDB\\RWDB static 20221017.mdb")))
+#GRADS
+dbpath=normalizePath(paste0(gsub("\\/Documents","",Sys.getenv("HOME")),("\\Dropbox (FPC)\\FPC Team Folder\\Static RWDB\\RWDB static 20221017.mdb")))
 conn<-odbcDriverConnect(paste0("Driver={Microsoft Access Driver (*.mdb, *.accdb)};DBQ=",dbpath))
 #This definitely works on FRANCE pc (laptop) 11/13/23; idk why it wont on the desktop cnr grad one
 
@@ -35,6 +38,52 @@ grep
 wex(sqlFetch(conn,"dbo_DOMINANT_HEIGHT_1"))
 wex(sqlFetch(conn,"dbo_APPLIED_TREATMENTS"))
 (sqlFetch(conn,"dbo_SAMPLING_LOCATION"))
+
+#d
+#So 11/2023 trying to figure out which 184401 and 185201 soils are already in the rwdb, physical archive, and bigsample table or any other locations
+#1st, what sample nu,bers for 184401  and 185201 are there in the rwdb?
+nut%>%
+  subset(STDY%in%c(185201 ,184401))%>% 
+  select(STDY,YST,`SAMPLE_#`)%>%
+  group_by(STDY,YST)%>%
+  reframe(a=range(`SAMPLE_#`))
+
+tree%>%
+  subset(STDY%in%c(180601))%>% 
+  select(YST,PLOT,TREE_No)%>%
+  group_by(PLOT)%>%
+  reframe(a=max(TREE_No))%>%
+  pull(a)%>%sum()
+  print(n=100)
+
+#2679 trees in 0601
+#
+  
+  ## A tibble: 6 × 3
+  #STDY   YST     a
+  #<int> <dbl> <int>
+  #  1 184401     0  1502
+  #2 184401     0  1517
+  #3 185201     0  2553
+  #4 185201     0  2570
+  #5 185201    10 22593
+  #6 185201    10 22652
+#so the bigsampletable insinuates pretty clearly that 4 samples, ranging 23231-23282, were sent to Funga and archived; i assume fall 2022;
+#... but there is no yst info or DATE_COLLECT on these so where can i look to see what ive already had someone package?
+#1. Is that in a funga doc? ("C:\Users\sabloszi\Dropbox (FPC)\FPC Team Folder\RegionWide Trials\Special Studies\Funga fungal microbiome\Funga FPC Site Summary 6-22-2022_Plotnumbers.csv")
+#.... Yes, it is; 4401 was sampled 7/25/2015 for the ones we sent to funga, and they came from boxes, so i assume we took some boxes out and left the rest where
+#... they were in the correugated box. So i am pretty confident that the numbers tim gave us ended up actually going to 2015, not 2013 samples like I 
+#... had asked him for, incorrectly. tds2023-11-13
+#2. So, now what? 
+#2.1 Let tim KNow that the samples that went to funga are two years newer than I said; also make sure he can still use/reassign these smaple numbers to the 2015 date and whether missing 2013 soil is bad
+#2.2 See whether the 185201 numbers are OK; does tim think these are 2015 or 2013? The tds2023-11-13 email from him sais 20130525
+#2.2.1 Can i tell what those numbers are in the rwdb? 
+# Yes, because it says yst 10 on both the rwdb and the tds2023-11-13 email xlsx
+#2.2.2 Therefore I also need to tell him these are 2015 soils and ask whether that changes the next steps
+stdy%>%
+  subset(STDY%in%c(185201 ,184401))%>%view()
+#ok so yst=0 is 2003 for 185201 and 2000 for 4401
+  #pick up here after tim replies. you should move this to a archive section or doc or something. 
 
 #get all the names of every column in every table 
 framnams1<-sapply(tblnams[1:31],function(x){names(sqlFetch(conn,x))})
@@ -154,16 +203,9 @@ unique()%>%
 gdata::left(3)
 wex(stdy)
 #6	3 reps, MCP, hi and lo silviculture, 500 tpa
-#pick up----
-#just got va and v, mkae sure they make sense then go ahead and make figures for one or both and do anova
-#setwd
+#rw185201:read in----
 #setwd("C:/Users/seanb/")
 #setwd("C:/Users/sabloszi")
-
-
-
-#readin----
-
 trd<-read_excel(paste0(getwd(),"/Dropbox (FPC)/Bloszies (1)/NCSU/CNR/FER/FPC/RegionWide Trials/RW18/185201ECM.xlsx"),
                 sheet="185201",#skip=1,col_names =c("baeid_1","tocmgl_1","baeid_2","tocmgl_2"), 
                 #     col_types = c("numeric","skip","numeric","skip","skip","numeric","skip","numeric"),
@@ -221,7 +263,7 @@ trd<-merge(trd,read.csv("./Dropbox (FPC)/Bloszies (1)/NCSU/CNR/FER/FPC/RegionWid
 #example for one tree
 # (10*10*50*0.002)+0.25
 
-#aggregate the data to get means by plot----
+#rw185201:aggregate the data to get means by plot----
 trd2<-
   trd%>%
   merge(.,dplyr::summarize(group_by(.,year,plot), 
@@ -237,7 +279,7 @@ trd2<-
   select(-c(vm2,v,v_s,dbh,ht,htlc,tree_no) )#(get rid of aggregation indicator vm2, and v, which is leftover individual tree data), and v_s, which is per plot volume which lacks context, and dbh, ht, and htlc which are leftover individual rtree data
 
 
-#get growth (difference over 6 years) data-----
+#rw185201:get growth (difference over 6 years) data-----
 trd2<-melt(trd2,measure.vars = c("v_m","ht_m","dbh_m","va"))%>%
   cast(.,plot+block+trt+SIZE+rat+frq+variable~year)%>%
   rename(.,"x2016"="2016","x2022"="2022")%>%
@@ -256,7 +298,7 @@ tpp<- trd%>%as.data.frame%>%#tpp trees per plot
   rename(.,trees="value")
 #you get an aggregation warning, but that is exactly what you want so ignore
 
-#1 boxplots with whiskerys-----
+#rw185201:1 boxplots with whiskerys-----
 if("you just want one plot at a time and you want boxes"==T){
   #this is pretty much there, just make more and pretty it up, chage the colors etc
   cbbPalette <- c( "#B9975B","#115740") #need for colors
@@ -280,7 +322,7 @@ if("you just want one plot at a time and you want boxes"==T){
     labs(shape="Block",color="Year")+ #legend label
     theme_bw()
 }
-#one plot at a time but with standard error se 's------
+#rw185201:one plot at a time but with standard error se 's------
 #pick up getting the mean and st err bors to work and put in ggplot below
 
 
@@ -311,7 +353,7 @@ if("you just want one plot at a time"==T){
 
 
 
-#2 all data------
+#rw185201:2 all data------
 soil_vars<-function(svariable,otherthings){
   trd%>%
     #Now the actual plot part:
@@ -342,7 +384,7 @@ ggsave(filename=	"G:/My Drive/Studies/FPC/SharedFolderSean/RegionWide Trials/RW1
 ggsave(filename=	"G:/My Drive/Studies/FPC/SharedFolderSean/RegionWide Trials/RW18/185201 Wadeville NC/rw18_5201_share/Chandler_Poster-185201_years_htlc.png"	,device="png",     width = 15, height = 8,plot=	htlc ,units="in"	)
 
 
-#2.1 all variables but just means instead of raw points------
+#rw185201:2.1 all variables but just means instead of raw points------
 soil_vars<-function(svariable,otherthings){
   trd%>%
     #Now the actual plot part:
@@ -374,7 +416,7 @@ ggsave(filename=	"G:/My Drive/Studies/FPC/SharedFolderSean/RegionWide Trials/RW1
 
 
 
-#2.2 just growth measurements (means of those by trt)-----
+#rw185201:2.2 just growth measurements (means of those by trt)-----
 #givemn makes mns for the bars themselves
 give.mn <- function(x){ 
   return(data.frame(y = .8*mean(x), label = round(mean(x),1)))#change to 0 or 1 for ht, dbh vs volume
@@ -416,7 +458,7 @@ if("youre wanting to save, pardner"==T){
   ggsave(filename=	"G:/My Drive/Studies/FPC/SharedFolderSean/FPC Team Folder/RegionWide Trials/RW18/185201 Wadeville NC/rw18_5201_share/Chandler_Poster-185201_growth_dbh.png"	,device="png",     width = 8, height = 8/1.618033988749894,plot=	dbh_mg ,units="in"	)
 }
 
-#2.4 just yearly measurements, and just means of those-----
+#rw185201:2.4 just yearly measurements, and just means of those-----
 
 
 #need -  
@@ -460,7 +502,7 @@ if("you want to save these"==T){
 
 
 
-#2.3 just tpa trees per acre-----
+#rw185201:2.3 just tpa trees per acre-----
 
 
 
@@ -499,7 +541,7 @@ ggsave(filename=	"G:/My Drive/Studies/FPC/SharedFolderSean/FPC Team Folder/Regio
 
 
 
-#3 anova-----
+#rw185201:3 anova-----
 trd2%>%
   lmer((v_m)~(frq+rat)*year+(1|block/frq:rat),    #don't fuck with this 
        data=.,                        #this gives 3 ddf for frq and rat (freq:rat-1), 4 for year (4*((blocks-1)*(year-1))
@@ -514,7 +556,10 @@ anova(trd_all_trts)%>%
          fvsigfig=signif(statistic,2))#%>%wex() #this is whats in the pub
 #Takehomes: clt:labtr is significant at 0.05 * 
 
-##151.         Means sep for "lbcextr" soil data-----
+#rw185201:#151.         Means sep for "lbcextr" soil data-----
+
+#note this is unfinished and is just copied and pasted from another similar designed experiment from my agronomic soil science postdoc
+#... and eventually could be modified for any blocked data
 
 #Note this is all pristine, ie. exactly what is in the 
 #C:\Users\seanb\Documents\words\My Career\NCSU\Studies\LabileC\Presentable\MBC Plots\2020Redo_soil_extrns\LabC_2020Redo_soil_extrns_all_vars_means_sep_letters.pptx
@@ -1736,7 +1781,7 @@ read.table(text="
 str()
 
 
-#combine pdfs-----
+#combine or split pdfs-----
 qpdf::pdf_combine(input = 
                     c("C:/Users/sabloszi/Dropbox (FPC)/FPC Team Folder/RegionWide Trials/RW28/281303/Data/281303_DataSheets_20230105.pdf",
                       "C:/Users/sabloszi/Dropbox (FPC)/FPC Team Folder/RegionWide Trials/RW28/281303/Data/281303_DataSheets_202301052.pdf"  ),
@@ -1747,10 +1792,15 @@ qpdf::pdf_combine(input = c("B:/20221215_ROSS_CLARK_CIR.pdf",
                             "B:/20221215_ROSS_CLARK_CIR2.pdf"
 ),
 output = "G:/My Drive/Studies/FPC/SharedFolderSean/Bloszies (1)/NCSU/Official/Pcard/Receipts/20221215_uspsdothan_doesoilsshipping.pdf")
+qpdf::pdf_combine(input = c(
+"Q:\\My Drive\\Studies\\FPC\\SharedFolderSean\\Bloszies (1)\\NCSU\\Official\\Pcard\\Receipts\\PDFcopyofreceiptsinfolder_0003.pdf",
+"Q:\\My Drive\\Studies\\FPC\\SharedFolderSean\\Bloszies (1)\\NCSU\\Official\\Pcard\\Receipts\\PDFcopyofreceiptsinfolder_0004.pdf"),
+output="Q:\\My Drive\\Studies\\FPC\\SharedFolderSean\\Bloszies (1)\\NCSU\\Official\\Pcard\\Receipts\\20231103_foodlion_iceForKeepingSamplesCold_584115.pdf")
+#i want to split a pdf into individual pages
+setwd("Q:/My Drive/Studies/FPC/SharedFolderSean/Bloszies (1)/NCSU/Official/Pcard/Receipts")
+pdf_split("PDFcopyofreceiptsinfolder.pdf", output = NULL, password = "")
 
-
-
-
+#fnas crtrlf afjatynfnwss pick up here 11/20 : see which pdfs of research summaries elijah hasnt done by going to https://drive.google.com/drive/folders/1hIYQAQkAil0VSnBHG5aA6WahP4kp3qoE?usp=drive_link aka the fer-fpc team > website folder
 
 #have need funga----
 read.table(text=
@@ -2844,558 +2894,261 @@ fpc.lidar.app()
 #CAN DELETE THIS SECTION IF NEED BE
 set.seed(1)
 as.Date(sample.int(365,24), origin=as.Date("1970-01-01"))%>%sort()
+#file search indexing------
 
-#Merging: make bigcombotable: just merge the main meeting tbl with year by year===-----
-#ok what if we just make massive out of execls?
+#First we have to specify where we want to look and what the nnicknames for those places are
+nmchfls<-c(#named charecter vec of base filepaths
+  googlemfpc="Q:/My Drive/Studies/FPC", #as of 11/2023 takes less than 10sec below
+  googles_="Q:/Shared drives/FER - FPC",#as of 11/2023 takes less than 10sec below
+  googlest="Q:/Shared drives/FER - FPC Team",#as of 11/2023 takes like 70sec (seventy) below
+  dropa="C:/Users/sabloszi/Dropbox (FPC)"#as of 11/2023 takes less than 10sec below
+)
 
-yby<-read_excel("Q:/Shared drives/FER - FPC Team/Website/Htmltables/Events-past-yearbyear-pres.xlsx",
-                sheet="Events-past-yearbyear-pres",#skip=1,col_names =c("baeid_1","tocmgl_1","baeid_2","tocmgl_2"), 
-                #     col_types = c("numeric","skip","numeric","skip","skip","numeric","skip","numeric"),
-                trim_ws = T )
-main<-read_excel("Q:/Shared drives/FER - FPC Team/Website/Htmltables/Events-past-maintable.xlsx",
-                 sheet="Events-past-maintable",#skip=1,col_names =c("baeid_1","tocmgl_1","baeid_2","tocmgl_2"), 
-                 #     col_types = c("numeric","skip","numeric","skip","skip","numeric","skip","numeric"),
-                 trim_ws = T )
+#Now get the actual lists
+#This is a function to go into all the places  you have in nmchfls and get the lists of files in each of those dirs
+iu<-sapply(nmchfls, #index unnamed
+  function(basep){
+    restnmd=names(basep)
+    itmp<-list.files(basep,recursive = T,include.dirs = T) #itmp: index temporary
+    names(itmp)<-restnmd
+    return(itmp)
+  }
+)
 
-wex(main)  
-
-massive<- merge(main,yby,
-                by="linkparent",all=T,
-                suffixes=c(".main",".yby"))
+#Something to do eventually: get non-fpc my drive files index'd; also this shows the alternative dir_ls which is equivalent to list.files except it makes pretty colored paths and is a named character which could be useful; also maybe faster and has more argument options
+#google my drive non fpc
+#googlem<-dir_ls("Q:/My Drive/Studies/FPC",all=T,type="any",recurse = T)
 
 
 
-wex(massive)
+##this is a function to put the list of path stuff in in a prettier, easier to navigate format.
+mindex<-mapply(function(x,y){list(list(basep=x,restnmd=y))}, #y is suppoed to be the big thing, x is supposed to be the nmc
+       nmchfls, # the named character vector of root paths
+       iu       ) #the big thing of the all files paths within those root path directories
 
-#pick up polishing this off; this should have al the meeting info plus the links to old files. you can at least get the new google links working for some of the things. 
+#actual search-----
+#gold
+sirch="funga"
+system.time( #9.81
+res <- lapply(mindex, function(ch) grep(sirch, ch,ignore.case = T)))
+#sapply(res, function(x) length(x) > 0)
 
-massive2<-merge(massive,googledmerge,by.x="linkbase.yby",by.y="name",all.x=T,all.y=T)%>%
-  mutate(., glink=ifelse(  !is.na(id),
-                           paste0("https://drive.google.com/open?id=",id),
-                           ifelse(grepl("youtu\\.be",link),link,
-                                  NA)))%>%
-  arrange(indmain,indyby)%>%
-  subset(!is.na(linkparent))
+system.time(# 0 seconds
+  res2<-mindex[sapply(res, function(x) length(x) > 0)]%>% 
+  lapply(., function(x) #https://stackoverflow.com/questions/14052612/extract-value-of-the-same-field-from-multiple-list-object-in-r
+    x[["restnmd"]]
+  )
+)
+#system.time( #
+#res3<-lapply(res2, function(ch) grepl(sirch, ch,ignore.case = T))
+#)
+#d)
+u7s<-mindex%>%
+  lapply(., function(x) #https://stackoverflow.com/questions/14052612/extract-value-of-the-same-field-from-multiple-list-object-in-r
+    x[["restnmd"]]
+  )%>%
+    lapply(., function(ch) subset(ch,grepl(sirch,ch)))
 
-massive2%>%  
-  subset(indyby!=285)%>%
-  mutate(FPC.Meeting2=
-           ifelse(grepl("Annual",FPC.Meeting,ignore.case=T),"Annual",
-                  ifelse(grepl("WG|orking",FPC.Meeting,ignore.case=T),"Working Group",
-                         ifelse(grepl("contact",FPC.Meeting,ignore.case=T),"Contact",
-                                "Other"))))%>%
-  mutate(Format=
-           ifelse(grepl("\\.pdf|-pdf",link,ignore.case=F),"PDF",
-                  ifelse(grepl("youtu\\.be",link,ignore.case=F),"Recording",NA)))%>%
-  mutate(.,Presentation.sp=
-           ifelse(duplicated(Presentation),target.yby,Presentation))%>%
-  select(
-    c(FPC.Meeting2,
-      Year,
-      Location,
-      Presentation,
-      Presentation.sp,
-      Speaker,
-      glink,
-      Date.main,
-      Date.yby,
-      Time,
-      indmain,
-      indyby,
-      FPC.Meeting,
-      target.yby
-    ))%>%wex()
+lapply(u7s)function(u7sw){
+}
 
-dim()
-
-subset(.,grepl("LiDAR - Bart A",target.yby))%>%
-  print()
-
-#pick up seeing if you can get a "if (contains forestproductivitycoop.net), replace with NA" kind of function going for the "link" column (this is where the actual files were linked on yby pages)
-
-write.csv(.,file="Q:/Shared drives/FER - FPC Team/Website/Htmltables/Events-past-bigcombo.csv")
-view()
+mapply(function(x,y){
+  #pick up here fnas 11/20 fill in how to get the stuff from nmchfls pasted before the things in u7s
+},
+u7s,
+nmchfls
+       )
 
 
 
 
-#Downloads/extractions: Untar Rachel's wp dwnlds and compare it with my mlfd dwnlds-----
-#Update 11/23 i think i already moved the tar ones to the google drive but if not this is a good way to start seeing which ones arent in the googledrove
-#this is how I extracted the stuff rachel downloaded and put into dropbox
-untar("C:/Users/sabloszi/Dropbox (FPC)/FPC Team Folder/Publications/Forestproductivitycoop.net docs/download-managers-backup.tar",
-      exdir="C:/Users/sabloszi/Dropbox (FPC)/FPC Team Folder/Publications/Forestproductivitycoop.net docs/untar",verbose = T)
+#crtrlf afjatynfnwss delete this line after fixing elijahs pdfs
 
-wex(tls)
+#write to json stuff-----
+rtw<-function(indvListOfFls){
+df.name<-deparse(substitute(indvListOfFls))
 
-tarf<-"HALLK-EucGY-FPC-2015-annual-meeting.pdf"
-tabf<-"hallk-eucgy-fpc-2015-annual-meeting-pdf" #tabf
-"\\.pdf"
-"\\.ppt$"
+inside<-indvListOfFls[103:105]%>%
+  unname()%>%
+  as.character()%>%
+  gsub("C:/Users/sabloszi/Dropbox (FPC)/","",.,fixed = T)
+    
+df.name<-list(indvListOfFls<-list("C:/Users/sabloszi/Dropbox (FPC)/"=inside))
 
-tolower(gsub("\\.pdf$","-pdf",tarf))==tabf#works
+return(df.name)
+}
+rtw(dropa)
 
-tlsb<-tolower(gsub("\\.pdf$","-pdf",basename(tls2)))
+#dropar<-
+  gsub("C:/Users/sabloszi/Dropbox (FPC)/","",as.character(dropa[103:104]),fixed=T)
+  dropar<-gsub("C:/Users/sabloszi/Dropbox (FPC)/","",dropa,fixed = T)
 
-#no weirdos
-tls2<-(tls[-c(957,1030,1529,1578,1600,1611,1619,2595,2603,2607,2613,2624,2738,2741,2749,2758,2760,2762,2745:2907)])
+#orig ctrl
+    cat(toJSON(list(dropa=dropa)),file=
+        "C:/delete/dropa.json")
+#dropar is remove the base part
+    cat(toJSON(list(dropar=dropar)),file=
+          "C:/delete/dropar.json")
+    #so removing the base of the path can save 1mb
+#dropar is unname 
+cat(toJSON(list(dropau=unname(dropa))),file=
+      "C:/delete/dropau.json")
+#so unnaming can save 1/2 of the total mb so this is a big deal, have to do this; also saves a lot in r's env ram or whatever. interesting that r memory.summary seem to be like 130%ish of the json version of th same lists so json is great i guess?
+#dropar is both rem and unnn
+cat(toJSON(list(dropau=unname(dropar))),file=
+      "C:/delete/dropaur.json")
 
-lkb<-pdf_links%>%pull(linkbase)
-tlsb%in%lkb%>%
-  sum()# so they do match a ton of them. lets make a way to get the ones we need into the folder where tey should be
-
-#As of 11/2023 you can see what got downloded into either the dropbox folder rachel downloaded,...
-#set wd to the main folder rachel downloaded from wp
-setwd("C:/Users/sabloszi/Dropbox (FPC)/FPC Team Folder/Publications/Forestproductivitycoop.net docs/untar")
-#Or the gdrive mlfd one Sean downloaded:
-setwd("Q:/Shared drives/FER - FPC Team/Website/Htmltables/wordpressdownloads/mlfd-forestproductivitycoop2")
+dropar<-unname(dropar)
+memory.summary()
+str(dropa)
 
 
-#final .net formatting to merge googled links with meeting info, don't delete-----
+#can i functify just the making a list of the base and the rest?
 
-#So at one point i was merging like this: (tbl was an old version of the .net years' page tables)
-#merge(tbl,googledmerge,by.x="linkbase",by.y="name",all.x=T,all.y=F,sort=T)%>%
-#googledmerge has the name as it appeared in the .net link so this works
-#so, if I put files in the google drive with titles that match whats in the yby (equibalend to tbl above), then i can do this same merge
-#therefore, at one point I the next step was get all the files from the [I assume tar] dropbox out of their hierarchy
-#... and then put them into the googledrive folder
 
-#So once everything's in the google drive folder, you can merge the meeting table info with the links.
-#Therefore you will need this in a little bit as the think to merge onto:
-pdf_links<-"Q:/Shared drives/FER - FPC Team/Website/Htmltables/Events-past-yearbyear-pres.csv"%>%
-  read.csv(encoding="UTF-8")
 
-#General architecture of if you wanted to move all to the base folder (wd folder)
-  file.rename(list.files,basename(PUTlist.filesBACKHERE))
+#this also works great, but idk how to name it up a level programatically 
+#... based on whatever i want to call the thing that is made (like 
+#-... say i want to name it like
+#... deleat=maybe(base="C:/delete"))
 
-# Replace the special characters with their corresponding replacements
-fixed_strings <- str_replace_all(strings, c(
-  '├▒'= "n" ,
-  "├í"="a",
-  '├⌐'="e",
-  '├│'="o"
-))
+maybe(base="C:/delete")
 
-#make named char vector of effed spanish characters
-spanc<-c('├▒'= "n" ,
-          "├í"="a",
-          '├⌐'="e",
-          '├│'="o")
+maybe<-function(base){
+rest<-list.files(path=base,recursive=T)
 
-#ok test run
-"13-Nestor-Ria├▒o-Fisiologia-Egrandis.pdf"%>%
-  gsub("\\.pdf$","-pdf",.)%>%
-str_remove_all(.,spanc)%>%  
-  tolower()
+test<-
+  list(pathparts=list(
+    base=base,  #this is just a string that could come from when  you make the object
+    rest=rest)) #this is the object and what apply woudl do on
 
-#ok now what happens same thing in googldmerge?
-googledmerge%>%
-  subset(grepl("├",name))%>%
-  mutate(.,name=gsub("\\.pdf$","-pdf",name))%>%
-  mutate(.,name=gsub("-pdf-pdf$","-pdf",name))%>%#some have pdf in the name already but we want them to all end up with just one "-pdf"
-  mutate(.,name=str_remove_all(name,spanc))%>%  
-  mutate(.,name=tolower(name))%>%
-merge(.,read.csv(file="Q:/Shared drives/FER - FPC Team/Website/Htmltables/Events-past-yearbyear-pres4.csv"),
-      by.x="name",by.y="linkbase",all.x=T,all.y=F)%>%
-  wex()
+return(test)
+}
 
-  file.rename(from=paste0("C:/Users/sabloszi/Dropbox (FPC)/FPC Team Folder/Publications/Forestproductivitycoop.net docs/untar/dlm_uploads/13-Nestor-Ria├▒o-Fisiologia-Egrandis.pdf"),
-              to=paste0(getwd(),"/",.))
+
+#this is golden dont fuck but use
+#onechunk dir
+dropan<-
+  list(pathparts=list(
+    base="C:/Users/sabloszi/Dropbox (FPC)/",  #this is just a string that could come from when  you make the object
+    rest=dropar[103:104])) #this is the object and what apply woudl do on
+#anotheronechunk dir
+dropan2<-
+  list(pathparts=list(
+    base="C:/Users/sabloszi/Dropbox (FPC)/",
+    rest=dropar[105:106]))
+#this is the thing that would go to json
+ml<-list(dropan=dropan,dropan2=dropan2)
+
+  
+
+  
+  myname="dropa",
+    list(pathparts=list(
+    base="C:/Users/sabloszi/Dropbox (FPC)/",
+    rest=dropar[105:106]))
+)%>%
+  str()
+
+
 
 #works dont fuck
-file.rename(from=paste0("C:/Users/sabloszi/Dropbox (FPC)/FPC Team Folder/Publications/Forestproductivitycoop.net docs/untar/dlm_uploads/13-Nestor-Ria├▒o-Fisiologia-Egrandis.pdf"),
-            to=paste0(getwd(),"/",tolower(gsub("\\.pdf$","-pdf","13-Nestor-Ria├▒o-Fisiologia-Egrandis.pdf"))))
+list(  
+  list(myname="dropa",pathparts=list(
+base="C:/Users/sabloszi/Dropbox (FPC)/",
+          rest=dropar[103:104])),
+  list(myname="dropa",pathparts=list(
+    base="C:/Users/sabloszi/Dropbox (FPC)/",
+    rest=dropar[105:106]))
+)%>%
+  str()
+  str(data())
+     
+     googlemfpc[1]%>%
+  str()
+
+#pick up seeing how to name just the list itself outside the function
 
 
 
+  as="fic/t"
+list(fu=list(a=as))
 
-#D1
+  #alt+ shift+ f
+#wirjs dont fuck
+#write to jason
+cat(toJSON(list(lffs=lffs,mtcars=mtcars)),file=
+      "C:/delete/LS1.json")
+#get it back
+LS1<-fromJSON(file="C:/delete/LS1.json"
+              )
 
-# remove punctuations characters 
-str_replace_all(")", "[[:punct:]]", "")
-
-grepl("[[:punct:]]","├")
-grepl("[^[\\-]]&[^[:alnum:]]","a-")
-grepl("[^[:alnum:]]","a-")
-
-
-str_replace_all(string, "[^[:alnum:]]", "")
-grepl("^[[:alnum:]_-]+$","3a-_A") #find rows thta have anything but ª and alphanumeric and _ and -
-#pick up gettin gthis subset of gogldrive files, then put their things on a table
-#MD1
-
-#11/8
-#need to do the spchars and then also replace periods and then 
-#so options are 
-#1 rbind the few that this spanc stuff fixes onto one of the yby htings like the pres4
-#2 Restore the problem spanish character lines to pres4 using meeetingstablehtmllinktargets
-#3 maybe use the bigcombotable for these messed up ones in pres4?
-#anyways goal is take pres4 and fix the effed 2017 and others with weird characters by stealing from OR merging with meeetingstablehtmllinktargets
-
-
-#so. which csvs have broken cells?
-#meetingtabletargethtml doesnt, but it is missing lots of googleinks
-#pres2 and pres3 do
-#bigcombotable doesnt, and has no google links
-#what is the minimum we need forom pres2 or 4?
-#ok first what can we even get from pres2 or 4? well allot ar effed so can we select against the noneffed?
-#then we can get anything.
-#can i just select against "link_target" that doesnt have (,) format?
-
+#trash
 #
-#https://forestproductivitycoop.net/?page_id=13306 are the only ones we need google links in the new folder? 
-#no, there's all the oens with the spancharacters,
-#ones with "--pdf" at the end
-# a few with perionds that got changed to "-"
-####jjq.ecofis.anualmeeting.2017-pdf becomes jjq-ecofis-anualmeeting-2017-pdf
-#lots that i genuinely cant find like k-carryover-184202
-#some that mabe had spaces or special charcters when uplodad so they become laprw2-selecci%c2%a6n-del-dise%c2%a6o-de-plantaci%c2%a6n_huape-pdf; this one is a pptx in dropbox with both space and periods, but no pdf
-######tyhis one in particular exists in 3 places: 
-######1. the copy of the dropbox meetings folders as a pptx and as a pdf (so two places in one) in fpc fer team google drive, and 
-######2. in mlfd2 as laprw2.-selecci┬ªn-del-dise┬ªo-de-plantaci┬ªn_huape-pdf and
-######3. the copy of the dropbox meetings folders as only          a pdf                 what brody put in fpc  google drive, and 
-
-#workspace for final websitetable stuffB=====================================================================D-----
-
-#0. some stuff to see what's going on with pres2
-read.csv(file="Q:/Shared drives/FER - FPC Team/Website/Htmltables/Events-past-yearbyear-pres2.csv",header=T)%>%
-  select(c(indyby,linkbase,glink.f2,glink.mt,x))%>%
-  #subset(.,grepl("--pdf",linkbase))%>%# note there's none with this format in the website tables, its just a filename thing in ggoledrive
-  subset(.,grepl("\\.",substr(linkbase,1,nchar(linkbase)-4)))%>% #so theres not many with periods outside the end and it doesnt matter bc the googledrive seems to have that tooo
-  pull(linkbase)
-#note pres2 has meeting classifcaation stuff but is missing lots of glinks
-
-#0. some stuff to see what's going on with pres4
-read.csv(file="Q:/Shared drives/FER - FPC Team/Website/Htmltables/Events-past-yearbyear-pres4.csv",header=T)%>%
-  select(c(indyby,linkbase,glink))%>%
-  #subset(.,grepl("--pdf",linkbase))%>%# note there's none with this format in the website tables, its just a filename thing in ggoledrive
-  subset(.,grepl("\\.",substr(linkbase,1,nchar(linkbase)-4)))%>% #so theres not many with periods outside the end and it doesnt matter bc the googledrive seems to have that tooo
-  pull(linkbase)
+manna<-dir_ls(c(
+  googst="Q:/Shared drives/FER - FPC Team/FPC Team Meetings",
+  googmfpc="Q:/My Drive/Library",
+  dropt="C:/Users/sabloszi/Dropbox (FPC)/FPC Team Folder/FPC Business",
+  cndrp="C:/Users/sabloszi/Documents/ArcGIS"
+),all=T,type="any",recurse = T)
 
 
-#1. get almost done pres table but it has cells messed up by spanchars
-read.csv(file="Q:/Shared drives/FER - FPC Team/Website/Htmltables/Events-past-yearbyear-pres4.csv",header=T)%>%
-  subset(is.na(link_target)|!base::startsWith(link_target,"("))->prescellseffed
+#everything bw parentheses----------
+library(stringr)
 
-#2 get almost done pres table but w/o the messed up cells
-read.csv(file="Q:/Shared drives/FER - FPC Team/Website/Htmltables/Events-past-yearbyear-pres4.csv",header=T)%>%
-  subset(base::startsWith(link_target,"("))->prescellsOK
+read.table(text ="
+xz
+Welcome and FPC Annual Meeting Overview (Campoe, Rubilar, Cook and Carter) 
+RW23: Intensity and duration of competing vegetation control in Colombia (Rubilar) 
+Calcium application response in Eucalyptus grandis (Cook) 
+Coffee-break 
+Carbon and water balance in eucalyptus genotypes under contrasting water availability regimes - Eucarbhydro (Valverde) 
+Soil carbon stocks over 40 years in Eucalyptus plantations (Cook and Campoe) 
+FPC Soil Map Update (Cook) 
+New RW trials & Ongoing Research Focus in LA (Campoe and Rubilar) 
+Lunch 
+RW7: Long Term Effects of Soil Preparation, Weed Control and Fertilization on Pine Productivity – Klabin Brazil (Campoe) 
+RW7: Long Term Effects of Soil Preparation, Weed Control and Fertilization on Radiata Pine Productivity – CMPC Chile (Bozo and Rubilar) 
+LA RW2: GxExS Genotype and plantation stocking in in Pinus taeda (Rubilar) 
+Coffee-break 
+RW20: Silviculture x Genotype x Environment study (Albaugh) 
+RW23: Intensity and duration of competing vegetation control in Pinus taeda – Klabin and NGB-FIA (Campoe) 
+Final discussion 
+Departure from the hotel 
+Visit to RW7: Long Term Effects of Soil Preparation, Weed Control and Fertilization on Pine Productivity – Klabin 
+Visit to RW23: Intensity and duration of competing vegetation control in Pinus taeda – Klabin 
+Lunch 
+Remote Sensing Tools Training Session 
+Strategic planning session and discussions 
+Lunch 
+Shuttle back to Curitiba-PR Airtport 
+",sep="$",header=T)%>%
+  pull(xz)->pary
+  #head(1)%>%
+  str_extract_all(., "\\([^()]+\\)")%>%
+  substring(., 2, nchar(.)-1)->par
 
-
-
-#3 is there anything to salvage from prescellseffed?
-wex(prescellseffed)
-#Yes. We need to get the linkparent and linkbase for sure, might as well get indyby
-prescellseffeds<-prescellseffed%>%select(c(indyby,linkparent,linkbase))
-
-#so now this subset needs its google links back as 
-#do go ahead and get ones that are "-pdf.pdf" format switched bc those arent good
-googledmerge2<-
-  googledmerge%>%
-  mutate(.,name=gsub("-pdf\\.pdf$","-pdf",name)  )%>%
-  mutate(.,name=
-      # Replace the special characters with their corresponding replacements bc the website tables dont have the special characters
-    str_replace_all(name, c(
-      '├▒'= "n" ,
-      "├í"="a",
-      '├⌐'="e",
-      '├│'="o",
-      '┬ª'="%c2%a6",
-      "--pdf"="-pdf"
-    ))           )
-
-#merge googledmerge2 and prescelleffeds; get rid of ones w/o google links
-prescellseffeds1<-
-  merge(prescellseffeds,googledmerge2,by.x="linkbase",by.y="name",all.x=T)%>%
-  subset(!is.na(id))
-
-#merge googledmerge2 and prescelleffeds; keep only ones w/o glinks
-prescellseffeds2<-
-merge(prescellseffeds,googledmerge2,by.x="linkbase",by.y="name",all.x=T)%>%
-  subset(is.na(id))
-#ok theres a few that still wont merge; make a special googleid table with no periods for the few that are missing periods in the html tables
-googledmerge3<-  googledmerge2%>%
-  #mutate(.,nam=substr(name,1,10))%>% #get first few characters
-mutate(.,name=gsub("\\.", "", name))
-
-#get ones that still dont have googleids and fix them
-prescellseffeds2<-prescellseffeds2%>%
-select(-id)%>%
-    #mutate(.,linkba=substr(linkbase,1,10))%>%
-  merge(.,googledmerge3,by.x="linkbase",by.y="name",all.x=T)
-
-#put them back togeteher and write over prescelleffeds
-prescellseffeds<-rbind(prescellseffeds1,prescellseffeds2)
-
-#note need to eventually put these back somewhere : put this these need need to be moved need to move
-#overall 30k foot view of links that need fixing:
-#                            
-#dm (domain)              total 
-#docs.google.com               1 #subset(dm=="docs.google.com") #keep this, it still works
-#drive.google.com            530 #these are golden
-#forestproductivitycoop.net   21 #these need fixing if possible but not sure where the files are; also maybe some are mp4s?
-#mymediasite.online.ncsu.edu   2 #subset(dm=="mymediasite.online.ncsu.edu") #can get rid of these, they are obsolete and there are only 2
-#www.dropbox.com              19 #subset(dm=="www.dropbox.com") #can get rid of these, they are deleted files that i think i messed up; only 26 anyways
-#youtu.be                     25 #these should all be fine, haven't checked all but probably ok
-
-#And then specific detailed view of links that need fixing for a handful of them:
-  # Rubilar_RW23-CM-Intensidad-y-Frecuencia-8-a https://forestproductivitycoop.net/?page_id=13306" fnas
-  #rw7b-respuesta-a-la-preparaci%c2%a6n-de-suelo-y-cm_venado-pdf
-  #laprw2-selecci%c2%a6n-del-dise%c2%a6o-de-plantaci%c2%a6n_huape-pdf
-#Presentation
-#197 Update on strategic planning results from 2020 & Estrat\xe9gia para a Am\xe9rica Latina 2021 - CookUpdate on strategic planning results from 2020 & Estrat\xe9gia para a Am\xe9rica Latina 2021 - Carter
-#Speaker  Date       Time indyby
-#197 Cook, Carter, Rubilar, Campoe 4-May 9:30-10:00    190
-#target
-#197 Update on strategic planning results from 2020 & Estrat\xe9gia para a Am\xe9rica Latina 2021 - Cook
-#..... and then any vieos in this folder need to be linked
-#https://drive.google.com/drive/folders/1YQjWMTqHHYNQlzuoQ0-dm5lmGSOaaWce?usp=drive_link
-
-#also indyby 156 and 710 don;t have meetnig-level (bigcombo) info for some reason so add that.
-
-
-
-#also need to merge glinks onto ones that werent effed cells
-#first fine files in google mlfd that have weird chars
-
-#works dont fuck but delete any time after glinks added to htmltables
-data.frame(n=(1:3),
-JJ=c("assorted","sfas├▒","asfasf"))%>%
-subset(unname(apply(sapply(JJ,str_detect,c('├▒',"├í",'├⌐','├│','┬ª',"--pdf")),2,any)))
-
-#so fine files in google mlfd that have weird chars
-googledmerge4<-googledmerge%>%
-  subset(unname(apply(sapply(name,str_detect,c('├▒',"├í",'├⌐','├│','┬ª',"--pdf")),2,any)))%>%
-  mutate(.,name=
-           # Replace the special characters with their corresponding replacements bc the website tables dont have the special characters
-           str_replace_all(name, c(
-             '├▒'= "n" ,
-             "├í"="a",
-             '├⌐'="e",
-             '├│'="o",
-             '┬ª'="%c2%a6",
-             "--pdf"="-pdf"
-           ))           )
-
-#now get spechail char ok cells table
-prescellsOK%>%
-  merge(googledmerge4,.,by.x="name",by.y="linkbase",all.x=T,all.y=F)%>%
-  head()
-#now get no special char ok cells table
-prescellsOKchars%>%pull(indyby)
-
-#"03-rw18-field-presentation-contact-meeting-2015--pdf" in gdrive needs to match with "03-rw18-field-presentation-contact-meeting-2015-pdf"
-prescellsOK%>%
-  subset(.,grepl("Nestor",linkbase))
-
-
-prescellsOK%>%
-  view()
+pary%>%
+  gsub("\\(.*?\\)","",.)%>%
+  wex()
+gsub("\\)","",gsub("\\(","",gsub(par,"",pary)))
+      )
   
-
-
-#ok a bunch that still dont have glinks are in  eetings folders. can i move them?
-from<-"Q:/Shared drives/FER - FPC Team/Meetings/Strategic/2020/Murals/Day 4 Final Topics.pdf"
-to<-"Q:/Shared drives/FER - FPC Team/Website/Htmltables/wordpressdownloads/mlfd-forestproductivitycoop2/Day 4 Final Topics.pdf"
-file.copy(from=from,to=to)
-#file.rename(from=to,to=from)
-
-#great so that works, lets try to do it on a batch:
-#1.make the main table:
-pdlks<-rbind.fill(prescellsOK,prescellseffeds)
-#there are blanks, make them NA's to make subsetting stuff easier
-pdlks[pdlks==""] <- NA
-
-
-
-#now get ones that have no link still and should have one
-pdlks1<-#part of final that had the "--pdf" thing
-pdlks%>%
-  subset(.,is.na(id))%>% #ones that dont have glinks now
-    subset(is.na(link_target)|link_target!="(, )")%>% #these never had anylinks
-subset(!grepl("youtu",link))%>% #dont want videios
-  subset(!is.na(linkbase))%>%
-    mutate(.,linkbase=
-      # Replace the special characters with their corresponding replacements bc the file names dont have specail chars
-    str_replace_all(linkbase, c('%20'= " ")))%>%
-  subset(.,grepl("pdf",linkbase))%>%
-  #subset(grepl("2016-euc-wg-contact-meeting-field-trip-pctures",linkbase))%>%
-  merge(.,googledmerge2,by.x="linkbase",by.y="name")%>%
-  mutate(.,id=coalesce(id.y,id.x))%>%
-  select(-c(id.x,id.y))
-#make pdkls even better
-pdlks44<-
-pdlks%>%
-  subset(.,!indyby%in%pdlks1$indyby)%>%
-      rbind(.,pdlks1)%>% #... and addd the fixed rows back so no need to coalesce over all 700+ rows
-  tail()#then get rid of rows you fixed in pdkls1 
-#anythign still missing from pdlks?
-pdlks44%>%
-  wana
-#yea somehow just rbinded some rows that only have indby, linkbase, glink, and linkparent
-#ok right that was on purpose bc the cells were effed; need to get them from bigcombo table
-#what distingueshes these?
-#easy, they have NA link_target; so read in bigcombo and rbind a subset
-bigcombo<-read.csv("Q:/Shared drives/FER - FPC Team/Website/Htmltables/Events-past-bigcombo.csv")
-#now subset pdlks44 so no NA linktarg:
-pdlks45<-
-  pdlks44%>%
-  subset(.,!is.na(link_target))%>%
-select(-X)  
-#and get the one with the na linktarg so you can merge with bigcombo, at least a small subset of it that is
-pdlks46<-
-  pdlks44%>%
-  subset(.,is.na(link_target))%>%
-  select(-X)  
-#ok just need to merge the ones with stuff
-pdlks46<-pdlks46[,!apply(pdlks46,2,function(x){all(is.na(x))})]
-#then get bigcombo just for those in pdlks45 with no linktarge
-bigcombosm<-bigcombo[!bigcombo$indyby%in%pdlks45$indyby,]%>%
-  rename("Date"=Date.yby,"target"=target.yby)%>%
-  select(names(.)[names(.)%in%names(pdlks45)])%>%
-  select(-glink)
-bigcombosmlks<-merge(bigcombosm,pdlks46,by="indyby")
-
-#if i rbind and fill will that be done?
-filenamsp<-
-rbind.fill(pdlks45,bigcombosmlks)%>%
-select(-c(glink,link_target))%>% #glink is superseded by id; all info in the original link_ is in column link, and then everything that was in _target is either in Presentation or target
-arrange(indyby)%>%
-  subset(.,is.na(id)&!is.na(linkbase))%>%
-  subset(!grepl("youtu",link))%>%
-  subset(!grepl("mp4",link))%>%
-pull(linkbase)%>%
-    str_replace_all(.,
-                  c("%20"=" ",
-                    "\\?dl=0"="")
-  )
-#no, theres still these that are missing glinks. filenamps was the problem linkbases that still dont have ids
-
-#So i moved a few files with some code i can now forget i think.
-#that doesnt add anything to the 
-#but i want to see if i can salvege/match some more of the ones in linkbase 
-#so first lets create another step data-
-pdlks47<-
-  rbind.fill(pdlks45,bigcombosmlks)
-
-#now lets see what we can rbind or merge to that or to a subset of that
-pdlks47<- pdlks47%>%
-  select(-c(glink,link_target))%>% #glink is superseded by id; all info in the original link_ is in column link, and then everything that was in _target is either in Presentation or target
-  arrange(indyby)
-
-#so i think part of the answer is the gmertge4 bc i never used it to put things on a main thing  
-pdlks49<-googledmerge4%>%
-  mutate(.,name=tolower(
-           str_replace_all(name,
-                           c("\\.pdf"="-pdf",
-                             "-pdf-pdf"="-pdf",
-                             "\\."=""
-                             )
-           )
-  ))%>%
-merge(.,pdlks48,by.x="name",by.y="linkbase",all.x=T,all.y=F)%>%
-subset(!is.na(indyby))%>%
-  rename("id"=id.x)%>%
-  select(-id.y)%>%
-  rename("linkbase"=name)
-
-#now put 49 on 47; 50 is almost golden
-pdlks50<-pdlks47[!pdlks47$indyby%in%pdlks49$indyby,]%>%
-rbind(.,pdlks49)%>%
-  arrange(as.numeric(indyby))
-
-#anything else easy? prob not, caution about getting into more
-pdlks48<- pdlks50%>%
-  subset(.,is.na(id)&!is.na(linkbase))%>%
-  subset(!grepl("youtu",link))%>%
-  subset(!grepl("mp4",link))
-
-#ok maybe one more bro
-googledmerge5<-
-  googledmerge%>%
-  mutate(linkbase2=str_replace_all(name,"[^[:alnum:]]",""))%>%
-  mutate(linkbase2=tolower(str_replace_all(linkbase2,"pdf","")))#%>%
-  pull(linkbase2)%>%sort()%>%wex()
   
-  #ok last one i swear
-pdlks481<-pdlks48%>%
-  mutate(linkbase=gsub("%20","",linkbase))%>%
-  mutate(linkbase=gsub(fixed =T, ".pdf?dl=0","",linkbase))%>%
-#[1] "Day%202%20Veg%20Management.pdf?dl=0" 
-  mutate(linkbase2=str_replace_all(linkbase,"[^[:alnum:]]",""))%>%
-mutate(linkbase2=tolower(str_replace_all(linkbase2,"pdf","")))%>%
-  merge(.,googledmerge5,by="linkbase2",all.y=F)%>%
-  rename("id"=id.y)%>%
-  select(-c(id.x,linkbase2,name))
-#yes 14 more rows!
-#why the fuck didnt i start with that  alnum shit?
   
-#nayways rbind this to the subset inverse of pgdlks50
-pdlks51<-pdlks50[!pdlks50$indyby%in%pdlks481$indyby,]%>%
-  rbind(.,pdlks481)%>%
-  arrange(as.numeric(indyby))
-#is this ok?
-wana(pdlks51)
-#yea that;s gold
-#coalse the youtube etc links and the gids
-pdlks52<-pdlks51%>%
-  mutate(.,dm=domain(link),ind=1)%>%
-  #subset(dm=="www.dropbox.com") #can get rid of these, they are deleted files that i think i messed up; only 26 anyways
-  #subset(dm=="mymediasite.online.ncsu.edu") #can get rid of these, they are obsolete and there are only 2
-  #subset(dm=="docs.google.com") #keep this, it still works
-  mutate(., linknew=#first make glinks out of any that have g ids
-           ifelse(!is.na(id),paste0("https://drive.google.com/open?id=",id),NA))%>%
-  mutate(.,linknew=coalesce(linknew,link))%>%
-  mutate(.,dm=domain(linknew),ind=1)
-#now get the table that has all the meeting level info, not just the yearbyyear/presentation level info
-bigcombo<-read.csv("Q:/Shared drives/FER - FPC Team/Website/Htmltables/Events-past-bigcombo.csv")
-
-#so some last formatting thins and putt with the meeting info
-  bigcombo%>%
-  rename("Date"=Date.yby,"target"=target.yby)%>%
-  select(indyby,names(.)[!names(.)%in%names(pdlks52)])%>%
-    select(-glink)%>%
-merge(.,pdlks52,by="indyby",all=T)%>%
-    arrange(as.numeric(indyby))%>%
-    select(-c(ind,id,dm))%>%
-    write.csv("Q:/Shared drives/FER - FPC Team/Website/Htmltables/meetingtablehtmllinkstargets.csv",row.names = F)
-#now get an second version that is like the goglesheet  meetingtablehtmllinkstargets.gsheet, "Q:\Shared drives\FER - FPC Team\Website\Htmltables\meetingtablehtmllinkstargets.gsheet", https://docs.google.com/spreadsheets/d/1Z1PGyYdzn5W2_jbypl1uwMoyb4XZ3oLKgGs94oZPmUM?usp=drive_fs 
-twt<-  read.csv("Q:/Shared drives/FER - FPC Team/Website/Htmltables/meetingtablehtmllinkstargets.csv",header = T)
-
-#Ok now read it back in to select only the columns that go in the googlesheet; 
-twtf<-twt%>% #twtf is "that writeable table final" as in final for googlesheets
-  mutate(Presentation2=Presentation)%>%#make a placeholder copy bc the googlesheet has a linked version of the same column
-  mutate(Speaker.list="")%>% #another plaeholder for eventual list??
-  mutate("Speaker.old"=Speaker)%>% #these need to be tidied up but leaving them in as old speaker bc its the only place that info exists now
-  select(c(FPC.Meeting2,Year,Location,Presentation,Presentation2,Speaker,linknew,Date.main,Date,Time,indmain,indyby,FPC.Meeting,Presentation.concat,target,Speaker.list,Speaker.old))
-  #note this just leaves out  "linkbase"      "linkparent"   "link"          "Working.Group"; dont need these for the website
-  #see here are the columns in the gsheet as of 11/12/23:
-  
-#so now lets make a connection to the main gsheet the .org meetings table links to and write to there:
-#meetingtablehtmllinkstargets is #https://docs.google.com/spreadsheets/d/1Z1PGyYdzn5W2_jbypl1uwMoyb4XZ3oLKgGs94oZPmUM?usp=drive_fs which is "Q:\Shared drives\FER - FPC Team\Website\Htmltables\meetingtablehtmllinkstargets.gsheet"
-mtb<- ("https://docs.google.com/spreadsheets/d/1Z1PGyYdzn5W2_jbypl1uwMoyb4XZ3oLKgGs94oZPmUM/edit#gid=0")
-sheet_write(twtf, mtb, sheet = "meetingtablehtmllinkstargets")
-#If successful this should tell you this in the Console:
-#"✔ Writing to meetingtablehtmllinkstargets."
-#"✔ Writing to sheet meetingtablehtmllinkstargets."
-
-  
-#Wbesite table Final steps are some QC========------
-#make a random subset of the meetings pres that has two links per meeting (for meetings with links)
-setwd("Q:/Shared drives/FER - FPC Team/Website/Htmltables/")
-set.seed(6660)
-subs<-
-  twt%>%
-  subset(!linknew=="")%>%#just want ones with linkes
-split(.,.$indmain)%>%
-lapply(.,function(x)
-{slice_sample(x,n=2)}
-  )
-#then write it
-rbindlist(subs,idcol = "indmain")%>%
-  write.csv("meetingtablehtmllinkstargets_randomsubsetdelete.csv")
+  print()
+head()
+# Get the parenthesis and what is inside
+k <- str_extract_all(j, "\\([^()]+\\)")[[1]]
+# Remove parenthesis
+k <- substring(k, 2, nchar(k)-1)
 
 #github-----
 setwd("Q:/My Drive/Studies/FPC/Scripts")
 #load(".RData")
 wael()
 
+#delete-----
+#email to chirtn
+
+#
