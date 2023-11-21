@@ -3,6 +3,9 @@
 #just define the connection to the db from R; doesn't create an object in the global env that has actual rwdb data in it
 #FRANCE
 dbpath=normalizePath(paste0(gsub("\\\\Documents","",Sys.getenv("HOME")),("\\Dropbox (FPC)\\FPC Team Folder\\Static RWDB\\RWDB static 20221017.mdb")))
+#on france it looks like 
+#"C:\\Users\\sabloszi\\Dropbox (FPC)\\FPC Team Folder\\Static RWDB\\RWDB static 20221017.mdb" in R as a result of above
+#"C:\Users\sabloszi\Dropbox (FPC)\FPC Team Folder\Static RWDB\RWDB static 20221017.mdb" and this in the explorer path
 #GRADS
 dbpath=normalizePath(paste0(gsub("\\/Documents","",Sys.getenv("HOME")),("\\Dropbox (FPC)\\FPC Team Folder\\Static RWDB\\RWDB static 20221017.mdb")))
 conn<-odbcDriverConnect(paste0("Driver={Microsoft Access Driver (*.mdb, *.accdb)};DBQ=",dbpath))
@@ -48,16 +51,32 @@ nut%>%
   group_by(STDY,YST)%>%
   reframe(a=range(`SAMPLE_#`))
 
-tree%>%
-  subset(STDY%in%c(180601))%>% 
-  select(YST,PLOT,TREE_No)%>%
-  group_by(PLOT)%>%
-  reframe(a=max(TREE_No))%>%
-  pull(a)%>%sum()
-  print(n=100)
 
-#2679 trees in 0601
-#
+
+#make a heatmap------
+tree%>% #tree raw straight up from  rwdb
+  subset(STDY%in%c(180601,184501,184401,181502,281303))%>% 
+  select(STDY,PLOT,TREE_No)%>%
+  mutate(.,PT=paste0(PLOT,TREE_No))%>%
+  group_by(STDY)%>%
+  reframe(a=length(unique(PT)))->dat
+#split by study b/c its too big with all the studies
+a2<-
+dat%>%
+  split(.,.$STDY)%>%
+  lapply(.,function(x){
+    x<-as.data.frame(x)
+  mutate(x,sp=paste0(STDY,PLOT))})
+#make the figure
+ggplot(a2[[4]] , aes(x=as.factor(YST), y=sp, fill = a)) + 
+    geom_tile(color = "white", size = 0.1) + 
+    scale_x_discrete(expand=c(0,0)) + 
+    scale_y_discrete(expand=c(0,0)) + 
+    scale_fill_viridis(name="# of trs", option = "plasma") + 
+    coord_equal() + 
+    labs(x="Call hour", y=NULL, title=sprintf("trees")) + 
+    theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1))
+
   
   ## A tibble: 6 × 3
   #STDY   YST     a
@@ -2928,40 +2947,25 @@ mindex<-mapply(function(x,y){list(list(basep=x,restnmd=y))}, #y is suppoed to be
 
 #actual search-----
 #gold
+#Define the search
 sirch="funga"
-system.time( #9.81
-res <- lapply(mindex, function(ch) grep(sirch, ch,ignore.case = T)))
-#sapply(res, function(x) length(x) > 0)
-
-system.time(# 0 seconds
-  res2<-mindex[sapply(res, function(x) length(x) > 0)]%>% 
-  lapply(., function(x) #https://stackoverflow.com/questions/14052612/extract-value-of-the-same-field-from-multiple-list-object-in-r
-    x[["restnmd"]]
-  )
-)
-#system.time( #
-#res3<-lapply(res2, function(ch) grepl(sirch, ch,ignore.case = T))
-#)
-#d)
-u7s<-mindex%>%
+#do the search
+system.time(
+u7s<-mindex%>% #.1 seconds
   lapply(., function(x) #https://stackoverflow.com/questions/14052612/extract-value-of-the-same-field-from-multiple-list-object-in-r
     x[["restnmd"]]
   )%>%
     lapply(., function(ch) subset(ch,grepl(sirch,ch)))
+)
 
-lapply(u7s)function(u7sw){
-}
+nmchfls[names(nmchfls)==names(u7s)]
 
 mapply(function(x,y){
-  #pick up here fnas 11/20 fill in how to get the stuff from nmchfls pasted before the things in u7s
+  paste0(x,"/",y)
 },
-u7s,
-nmchfls
-       )
-
-
-
-
+nmchfls,
+u7s   )
+#end of runthrough
 #crtrlf afjatynfnwss delete this line after fixing elijahs pdfs
 
 #write to json stuff-----
@@ -3145,10 +3149,5 @@ k <- substring(k, 2, nchar(k)-1)
 
 #github-----
 setwd("Q:/My Drive/Studies/FPC/Scripts")
-#load(".RData")
+#load(".RData2")
 wael()
-
-#delete-----
-#email to chirtn
-
-#
