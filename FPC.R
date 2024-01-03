@@ -28,6 +28,7 @@ tblnams<-sqlTables(conn, tableType = "TABLE")$TABLE_NAME
 #create indiv tables as dfs
 nut<-sqlFetch(conn, "dbo_NUT_SOIL")
 dam<-sqlFetch(conn, "dbo_DAMAGE")
+mort<-sqlFetch(conn, "dbo_MORTALITY")
 splloc<-sqlFetch(conn,"dbo_SAMPLING_LOCATION")
 tree<-sqlFetch(conn,"dbo_TREE_GROWTH")
 stdy<-sqlFetch(conn,"dbo_STUDY_INFO")
@@ -37,7 +38,6 @@ depths<-sqlFetch(conn,"dbo_DEPTH_CODES")
 sqlFetch(conn,"dbo_COMPANY_OPERATIONS")%>%
   subset(OPERATION_ID!=140)%>%
   subset(.,grepl("cock",OPERATION_NAME,ignore.case=T))
-grep
 wex(sqlFetch(conn,"dbo_DOMINANT_HEIGHT_1"))
 wex(sqlFetch(conn,"dbo_APPLIED_TREATMENTS"))
 (sqlFetch(conn,"dbo_SAMPLING_LOCATION"))
@@ -45,11 +45,41 @@ wex(sqlFetch(conn,"dbo_APPLIED_TREATMENTS"))
 #d
 #So 11/2023 trying to figure out which 184401 and 185201 soils are already in the rwdb, physical archive, and bigsample table or any other locations
 #1st, what sample nu,bers for 184401  and 185201 are there in the rwdb?
-nut%>%
-  subset(STDY%in%c(185201 ,184401))%>% 
-  select(STDY,YST,`SAMPLE_#`)%>%
-  group_by(STDY,YST)%>%
-  reframe(a=range(`SAMPLE_#`))
+tree%>%
+  #subset(STDY%in%c(184401))%>% #185201
+  subset(substr(STDY,1,2)==28)%>% #185201
+  select(STDY,YST,PLOT)%>% # `SAMPLE_#`,
+pull(STDY)%>%unique()%>%c(.,c(282201))wex()
+  #pull(PLOT)%>%
+  c(.,rw0645,rw22)%>%
+  unique()%>%
+wex()
+
+#delete
+#280606
+rw0645<-read.csv("C:/Users/sabloszi/Dropbox (FPC)/FPC Team Folder/RegionWide Trials/RW28/Workplan/RW28 Workplan 20200522_trt_codes_only.csv",header=T)%>%
+  pull(raw28)
+read.table(text="
+2412
+2424
+1412
+2000
+2624
+2212
+1624
+1424
+2206
+1206
+1212
+1218
+1211
+2211
+1000
+2418
+2218
+1418
+",header=F)%>%pull(V1)->rw22
+#menddelete
 
 
 
@@ -1801,10 +1831,15 @@ str()
 
 
 #combine or split pdfs-----
+
+setwd(
+  "Q:/Shared drives/FER - FPC Team/Website/Htmltables/wordpressdownloads/mlfd-forestproductivitycoop2"
+)
 qpdf::pdf_combine(input = 
-                    c("C:/Users/sabloszi/Dropbox (FPC)/FPC Team Folder/RegionWide Trials/RW28/281303/Data/281303_DataSheets_20230105.pdf",
-                      "C:/Users/sabloszi/Dropbox (FPC)/FPC Team Folder/RegionWide Trials/RW28/281303/Data/281303_DataSheets_202301052.pdf"  ),
-                  output = "C:/Users/sabloszi/Dropbox (FPC)/FPC Team Folder/RegionWide Trials/RW28/281303/Data/281303_DataSheets_202301053.pdf")
+                    c("FPC2022_EarthEngineWorkshop1.pdf",
+                      "FPC2022_EarthEngineWorkshop2.pdf")
+  ,
+                  output = "FPC2022_EarthEngineWorkshop.pdf",)
 
 
 qpdf::pdf_combine(input = c("B:/20221215_ROSS_CLARK_CIR.pdf",
@@ -1812,9 +1847,9 @@ qpdf::pdf_combine(input = c("B:/20221215_ROSS_CLARK_CIR.pdf",
 ),
 output = "G:/My Drive/Studies/FPC/SharedFolderSean/Bloszies (1)/NCSU/Official/Pcard/Receipts/20221215_uspsdothan_doesoilsshipping.pdf")
 qpdf::pdf_combine(input = c(
-"Q:\\My Drive\\Studies\\FPC\\SharedFolderSean\\Bloszies (1)\\NCSU\\Official\\Pcard\\Receipts\\PDFcopyofreceiptsinfolder_0003.pdf",
-"Q:\\My Drive\\Studies\\FPC\\SharedFolderSean\\Bloszies (1)\\NCSU\\Official\\Pcard\\Receipts\\PDFcopyofreceiptsinfolder_0004.pdf"),
-output="Q:\\My Drive\\Studies\\FPC\\SharedFolderSean\\Bloszies (1)\\NCSU\\Official\\Pcard\\Receipts\\20231103_foodlion_iceForKeepingSamplesCold_584115.pdf")
+"Q:\\My Drive\\Studies\\FPC\\SharedFolderSean\\Bloszies (1)\\NCSU\\Official\\Pcard\\Receipts\\20231127_industrialmarkingpensCom_markers_584115_1.pdf",
+"Q:\\My Drive\\Studies\\FPC\\SharedFolderSean\\Bloszies (1)\\NCSU\\Official\\Pcard\\Receipts\\20231127_industrialmarkingpensCom_markers_584115_2.pdf"),
+output="Q:\\My Drive\\Studies\\FPC\\SharedFolderSean\\Bloszies (1)\\NCSU\\Official\\Pcard\\Receipts\\20231127_industrialmarkingpensCom_markers_584115.pdf")
 #i want to split a pdf into individual pages
 setwd("Q:/My Drive/Studies/FPC/SharedFolderSean/Bloszies (1)/NCSU/Official/Pcard/Receipts")
 pdf_split("PDFcopyofreceiptsinfolder.pdf", output = NULL, password = "")
@@ -2911,8 +2946,10 @@ library(FPCALSpackage)
 fpc.lidar.app()  
 #dates-----
 #CAN DELETE THIS SECTION IF NEED BE
-set.seed(1)
-as.Date(sample.int(365,24), origin=as.Date("1970-01-01"))%>%sort()
+set.seed(2)
+as.Date(sample.int(365,4), origin=as.Date("1970-01-01"))%>%sort()
+#Sean on annual leave
+
 #file search indexing------
 
 #First we have to specify where we want to look and what the nnicknames for those places are
@@ -2948,14 +2985,14 @@ mindex<-mapply(function(x,y){list(list(basep=x,restnmd=y))}, #y is suppoed to be
 #actual search-----
 #gold
 #Define the search
-sirch="funga"
+sirch="contacts_FPC.csv"
 #do the search
 system.time(
 u7s<-mindex%>% #.1 seconds
   lapply(., function(x) #https://stackoverflow.com/questions/14052612/extract-value-of-the-same-field-from-multiple-list-object-in-r
     x[["restnmd"]]
   )%>%
-    lapply(., function(ch) subset(ch,grepl(sirch,ch)))
+    lapply(., function(ch) subset(ch,grepl(sirch,ch,ignore.case=T)))
 )
 
 nmchfls[names(nmchfls)==names(u7s)]
@@ -3151,3 +3188,259 @@ k <- substring(k, 2, nchar(k)-1)
 setwd("Q:/My Drive/Studies/FPC/Scripts")
 #load(".RData2")
 wael()
+
+#IP-----
+fromJSON(readLines("http://api.hostip.info/get_json.php", warn=F))$ip
+#GET treedata  from json survey123-----
+LS1<-fromJSON(file="C:/Users/sabloszi/Desktop/delete/FUCK.json"
+)
+str(LS1)
+#get an example of a couple trees treeno and ht just to show it's in there
+for(i in 1:2){
+print(LS1$TreeGroDatUnpub$Plots[[1]]$TREE[[i]][c("HT","countnum")])}
+
+
+#ok but can we get that in a table?
+#1st lets see what one tree looks like:
+LS1$TreeGroDatUnpub$Plots[[1]]$TREE[[1]]%>%
+  str()
+#not only is it a lit but there is stuff nested within the GPS_location
+
+#Next, can we do this unlist thing on the highest level, the one we need from this?
+#1st make a toy of the TREE level
+#So this does work for 2 trees
+tree1<-
+  LS1$TreeGroDatUnpub$Plots[[1]]$TREE[[1]]%>%
+    Unlist(depth = 0)%>%
+    as.list()%>%
+    data.frame()
+
+tree2<-
+  LS1$TreeGroDatUnpub$Plots[[1]]$TREE[[2]]%>%
+  Unlist(depth = 0)%>%
+  as.list()%>%
+  data.frame()
+
+(rbind.fill(tree1,tree2))
+
+#how do we get it to go on n trees withoutnaming each?
+#So this does work for  one plots trees
+lapply(LS1$TreeGroDatUnpub$Plots[[1]]$TREE[],function(x){
+  Unlist(x,depth = 0)%>%
+  as.list()%>%
+  data.frame()
+  }
+       )%>%
+  rbind.fill()%>%
+  wex()
+#ok great this works, dont fuck
+
+prac[[1]]<-c("red","blue")
+prac[[2]]<-c("green","yellow")
+
+LS1$TreeGroDatUnpub$Plots[[1]]
+
+#How bout for more plots? 
+lplts<-lapply(1:1,function(n){
+
+inside<-list()
+
+plotz<-  
+  lapply(LS1$TreeGroDatUnpub$Plots[[n]]$TREE[],function(x){
+  Unlist(x,depth = 0)%>%
+    as.list()%>%
+    data.frame()
+}
+)%>%
+  rbind.fill()
+  
+inside[[n]]<-plotz  
+  })
+
+  
+
+  
+#next, if i kept doing this plot by lot it might take forever, can i get the json out of the squlite?
+library(dplyr) #I think I got DBI with dplyr
+library(dbplyr) #for some database connection functions
+#main database from sean's phone at the end of 281303, needs elements 2 through 14
+con <- DBI::dbConnect(RSQLite::SQLite(), dbname = "C:/Users/sabloszi/ArcGIS/My Surveys/Databases/a084e65cd9403d813e8ec667ca329a63.sqlite")
+#1 plot database from brody's phone at the beginning of 281303, just needs one survey but not sure the id # for the "  pull(data)%>% .[11:13]" part
+con <- DBI::dbConnect(RSQLite::SQLite(), dbname ="C:/Users/sabloszi/ArcGIS/My Surveys/Databases/20231207_rbhall_survey123_export.sqlite")
+#2 plot (plus one tree in another plot) database from sean's phone at the beginning of 281303
+con <- DBI::dbConnect(RSQLite::SQLite(), dbname = "C:/Users/sabloszi/Desktop/dontdeleteArcgis/a084e65cd9403d813e8ec667ca329a64.sqlite")
+#not sure what this is for but i think it is in case you want to make a db connection from scratch and put stuff into it then save it back out?
+#con <- dbConnect(RSQLite::SQLite(), ":memory:")
+
+
+dbListTables(con)
+dataz<-dbGetQuery(con,"select data from Surveys limit 999")%>%
+  pull(data)%>%
+  .[11:13]
+names(dataz)<-paste0("d",c(2:14))
+
+#ok so lets do a test to get the plot thing for one of these, say number__
+LS2<-dataz[13]%>%
+  fromJSON()
+
+#what do lists look like?
+prac<-list("red","blue")
+#how do i know if a level has more than one item?
+
+#can i make a list of the json'ed datas?
+listy<-lapply(c(1:3), function(x){
+
+inside=
+    dataz[x]%>%
+    fromJSON()
+
+list(return(inside))
+})
+
+#yes that worked.
+
+#you can take a peak at the data with something like this:
+listy[[1]]$TreeGroDat$Plots[[1]]$TREE[[1]][c("HT","countnum")]
+
+#can i get the tree things as a list by calling the same stuff each survey?
+#yes, here's how:
+#(This is the all-the-plots stuff)
+trlv<-lapply(c(1:3),function(inside){
+headz<-
+lapply(listy[[inside]]$TreeGroDat$Plots[[1]]$TREE,function(x){ #the survey name has to be changed depending on what you called it when you set up the survey. TreeGroDat and TreeGroDatUnpub are two main ones
+
+    Unlist(x,depth = 0)%>%
+    as.list()%>%
+    data.frame()#%>%
+    #select(c(HT,countnum))
+})%>%
+  rbind.fill()
+  
+list(return(headz))  
+
+})
+
+#put all trlv together and wex
+trlvbs<-rbindlist(trlv,idcol = "huh",fill=T)
+#make brodys plot obvious if you're doing that one's con
+trlvbs$huh<-82
+#heres all the phone data:
+phdat<- list(trlvb,trlvbb)%>%rbindlist(.,fill=T)%>% #the different trlvbb, trlvbs, trlvb etc are from different sqlites in the beginning of this section and now im just birnding them togetoher
+  mutate(huh=huh+1) #get it back to the integer of the survey in the latest 281303 sean phone sqlite
+
+#ok can i get the plots level stuff?
+#here's the model for one when you want to peak at whats inside:
+listy[[9]]$TreeGroDat$Plots[[1]]$Comments
+#now get each element you want from all the surveys:
+phts<-  lapply(1:3,function(plot){listy[[plot]]$TreeGroDat$Plots[[1]]$photo_plot}) #lapply(8:13,.. for the main most recent seans phone sqlite for all these; lapply(1:3,... for the earlier sean phone sqlite
+plts<-  lapply(1:3,function(plot){listy[[plot]]$TreeGroDat$Plots[[1]]$PLOT  })
+gbid<-  lapply(1:3,function(plot){listy[[plot]]$TreeGroDat$Plots[[1]]$globalid  })
+pgbd<-  lapply(1:3,function(plot){listy[[plot]]$TreeGroDat$Plots[[1]]$parentglobalid  })
+cmmt<-  lapply(1:3,function(plot){listy[[plot]]$TreeGroDat$Plots[[1]]$Comments})
+#wont dataframe if theyre not the same dims and unlist gets rid of nulls
+phts[sapply(phts, is.null)] <- NA
+cmmt[sapply(cmmt, is.null)] <- NA
+
+#if there's not already a csv from getting the plot level data out earlier:
+data.frame(Comments=unlist(cmmt),
+           photo_plot=unlist(phts),
+           PLOT=unlist(plts))%>%
+  unique()%>%
+  #overwrites the csv, careful here
+  write.csv(
+    "C:/Users/sabloszi/Dropbox (FPC)/FPC Team Folder/RegionWide Trials/RW28/281303/Data/201303_20231207_htlc-ht-dbh-dam-mort_PLOT-survey123phone.csv")
+
+#but then once you have plot level data on a csv, you need to bind newer stuuff to it:
+#so first read in the old plot level stuff...
+pltlvOld<-read.csv(
+  "C:/Users/sabloszi/Dropbox (FPC)/FPC Team Folder/RegionWide Trials/RW28/281303/Data/201303_20231207_htlc-ht-dbh-dam-mort_PLOT-survey123phone.csv",header = T)%>%
+  select(-X)
+
+#then bind them together:
+data.frame(Comments=unlist(cmmt),
+           photo_plot=unlist(phts),
+           PLOT=unlist(plts))%>%
+  unique()%>%
+list(pltlvOld,.)%>%rbindlist(.,fill=T)%>%  #binding
+    #overwrites the csv, careful here
+  write.csv(
+    "C:/Users/sabloszi/Dropbox (FPC)/FPC Team Folder/RegionWide Trials/RW28/281303/Data/201303_20231207_htlc-ht-dbh-dam-mort_PLOT-survey123phone.csv")
+
+
+phdat%>%
+  mutate(PLOT=substr((gsub("281303","",PLOTTREE)),1,4))%>%
+  write.csv(
+    "C:/Users/sabloszi/Dropbox (FPC)/FPC Team Folder/RegionWide Trials/RW28/281303/Data/201303_20231207_htlc-ht-dbh-dam-mort_TREE-survey123phone.csv")
+
+#Ok and if you get more after the fact and want to add it to the csv:
+phdat2<-read.csv(
+  "C:/Users/sabloszi/Dropbox (FPC)/FPC Team Folder/RegionWide Trials/RW28/281303/Data/201303_20231207_htlc-ht-dbh-dam-mort_TREE-survey123phone.csv",header = T)
+#ok are the ones you want to put together at least similar in size?
+dim(phdat2) #835 by 39
+dim(trlvbs) #200 by 30, hmm not sure about thes 9 missing columns hope its nothing major
+
+trlvbs%>%
+mutate(PLOT=substr((gsub("281303","",PLOTTREE)),1,4))%>%
+  list(phdat2,.)%>%rbindlist(.,fill=T)%>% 
+  #now overwrite the csv;  be careful with this step
+  write.csv(
+    "C:/Users/sabloszi/Dropbox (FPC)/FPC Team Folder/RegionWide Trials/RW28/281303/Data/201303_20231207_htlc-ht-dbh-dam-mort_TREE-survey123phone.csv")
+
+
+#ok so pick up here, why is like one plot missing and wheres the other half of that one plot?
+#ok i found them they are in :"C:\Users\sabloszi\Desktop\dontdeleteArcgis\a084e65cd9403d813e8ec667ca329a64.sqlite"
+#just get the last two i think? anywasy theyre pretty obvious
+
+trlvb%>%
+  pull(PLOTTREE)%>%
+  substr(.,7,10)%>%unique()
+
+LS2$TreeGroDat$Plots%>%
+  Unlist(.,depth=0)%>%str()
+
+#what does one tree look like?
+LS2$TreeGroDat$Plots[[1]]$TREE[[1]]
+
+#what if i want specifc fields?
+  LS2$TreeGroDatUnpub$Plots[[1]]$TREE[[1]][c("HT","countnum")]
+
+
+ 
+#trash?:   
+#How bout for more plots? 
+#note this wasnt working as of 1/2
+lplts<-lapply(1:2,function(n){
+  
+  inside<-list()
+  
+  plotz<-  
+    lapply(LS2$TreeGroDatUnpub$Plots[[n]]$TREE[],function(x){
+      Unlist(x,depth = 0)%>%
+        as.list()%>%
+        data.frame()
+    }
+    )%>%
+    rbind.fill()
+  
+  inside[[n]]<-plotz  
+})
+
+
+
+
+  fromJSON()
+  str()
+
+
+
+#ok but can we get that in a table?
+#1st lets see what one tree looks like:
+LS2$TreeGroDat$Plots[[1]]%>%
+  Unlist(depth = 0)%>%
+  as.list()%>%
+  as.data.frame()%>%
+  dim()
+#Ok its huge bc it is all the trees on one row
+
+#what if i want to just make a list and get stuff from one higher level back in with the lower levels?
+
