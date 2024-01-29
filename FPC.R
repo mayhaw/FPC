@@ -1,257 +1,4 @@
 #source("Q:/My Drive/Library/datlibmgr.R")
-#rwdb gold------
-#just define the connection to the db from R; doesn't create an object in the global env that has actual rwdb data in it
-#FRANCE
-dbpath=normalizePath(paste0(gsub("\\\\Documents","",Sys.getenv("HOME")),("\\Dropbox (FPC)\\FPC Team Folder\\Static RWDB\\RWDB static 20221017.mdb")))
-#on france it looks like 
-#"C:\\Users\\sabloszi\\Dropbox (FPC)\\FPC Team Folder\\Static RWDB\\RWDB static 20221017.mdb" in R as a result of above
-#"C:\Users\sabloszi\Dropbox (FPC)\FPC Team Folder\Static RWDB\RWDB static 20221017.mdb" and this in the explorer path
-#GRADS
-dbpath=normalizePath(paste0(gsub("\\/Documents","",Sys.getenv("HOME")),("\\Dropbox (FPC)\\FPC Team Folder\\Static RWDB\\RWDB static 20221017.mdb")))
-conn<-odbcDriverConnect(paste0("Driver={Microsoft Access Driver (*.mdb, *.accdb)};DBQ=",dbpath))
-#This definitely works on FRANCE pc (laptop) 11/13/23; idk why it wont on the desktop cnr grad one
-
-#not sure what this one is for
-#conn<-odbcDriverConnect(  "Driver={Microsoft Access Driver (*.mdb, *.accdb)};DBQ=C:/Users/seanb/Dropbox (FPC)/FPC Team Folder/Static RWDB/RWDB static 20221017.mdb")#20221017
-#20221017.mdb, seanb
-#conn<-odbcDriverConnect("Driver={Microsoft Access Driver (*.mdb, *.accdb)};DBQ=C:/Users/seanb/Dropbox (FPC)/FPC Team Folder/Static RWDB/RWDB static 20221017.mdb")
-#20221017.mdb, sabloszi
-#conn<-odbcDriverConnect("Driver={Microsoft Access Driver (*.mdb, *.accdb)};DBQ=C:/Users/sabloszi/Dropbox (FPC)/FPC Team Folder/Static RWDB/RWDB static 20221017.mdb")
-#20221017.mdb, seanb?
-#conn<-odbcConnect("rwdb2022")   #new error 3/16/22- went to this b/c the driver path was "unknown" somehow
-#20210423.mdb, sabloszi
-#conn<-odbcDriverConnect("Driver={Microsoft Access Driver (*.mdb, *.accdb)};DBQ=C:/Users/sabloszi/Dropbox (FPC)/FPC Team Folder/Static RWDB/RWDB static 20210423.mdb")#
-#11156 in 2021, 11336 in 2022
-#11156 -11336 =180
-#see tables thats in it
-tblnams<-sqlTables(conn, tableType = "TABLE")$TABLE_NAME
-#create indiv tables as dfs
-nut<-sqlFetch(conn, "dbo_NUT_SOIL")
-dam<-sqlFetch(conn, "dbo_DAMAGE")
-mort<-sqlFetch(conn, "dbo_MORTALITY")
-splloc<-sqlFetch(conn,"dbo_SAMPLING_LOCATION")
-tree<-sqlFetch(conn,"dbo_TREE_GROWTH")
-stdy<-sqlFetch(conn,"dbo_STUDY_INFO")
-trts<-sqlFetch(conn,"dbo_TREATMENTS")
-sqlFetch(conn,"dbo_ACTIVITY_WORKPLAN")%>%wex()
-depths<-sqlFetch(conn,"dbo_DEPTH_CODES")
-sqlFetch(conn,"dbo_COMPANY_OPERATIONS")%>%
-  subset(OPERATION_ID!=140)%>%
-  subset(.,grepl("cock",OPERATION_NAME,ignore.case=T))
-wex(sqlFetch(conn,"dbo_DOMINANT_HEIGHT_1"))
-wex(sqlFetch(conn,"dbo_APPLIED_TREATMENTS"))
-(sqlFetch(conn,"dbo_SAMPLING_LOCATION"))
-
-#d
-#So 11/2023 trying to figure out which 184401 and 185201 soils are already in the rwdb, physical archive, and bigsample table or any other locations
-#1st, what sample nu,bers for 184401  and 185201 are there in the rwdb?
-tree%>%
-  #subset(STDY%in%c(184401))%>% #185201
-  subset(substr(STDY,1,2)==28)%>% #185201
-  select(STDY,YST,PLOT)%>% # `SAMPLE_#`,
-pull(STDY)%>%unique()%>%c(.,c(282201))wex()
-  #pull(PLOT)%>%
-  c(.,rw0645,rw22)%>%
-  unique()%>%
-wex()
-
-#delete
-#280606
-rw0645<-read.csv("C:/Users/sabloszi/Dropbox (FPC)/FPC Team Folder/RegionWide Trials/RW28/Workplan/RW28 Workplan 20200522_trt_codes_only.csv",header=T)%>%
-  pull(raw28)
-read.table(text="
-2412
-2424
-1412
-2000
-2624
-2212
-1624
-1424
-2206
-1206
-1212
-1218
-1211
-2211
-1000
-2418
-2218
-1418
-",header=F)%>%pull(V1)->rw22
-#menddelete
-
-
-
-#make a heatmap------
-tree%>% #tree raw straight up from  rwdb
-  subset(STDY%in%c(180601,184501,184401,181502,281303))%>% 
-  select(STDY,PLOT,TREE_No)%>%
-  mutate(.,PT=paste0(PLOT,TREE_No))%>%
-  group_by(STDY)%>%
-  reframe(a=length(unique(PT)))->dat
-#split by study b/c its too big with all the studies
-a2<-
-dat%>%
-  split(.,.$STDY)%>%
-  lapply(.,function(x){
-    x<-as.data.frame(x)
-  mutate(x,sp=paste0(STDY,PLOT))})
-#make the figure
-ggplot(a2[[4]] , aes(x=as.factor(YST), y=sp, fill = a)) + 
-    geom_tile(color = "white", size = 0.1) + 
-    scale_x_discrete(expand=c(0,0)) + 
-    scale_y_discrete(expand=c(0,0)) + 
-    scale_fill_viridis(name="# of trs", option = "plasma") + 
-    coord_equal() + 
-    labs(x="Call hour", y=NULL, title=sprintf("trees")) + 
-    theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1))
-
-  
-  ## A tibble: 6 × 3
-  #STDY   YST     a
-  #<int> <dbl> <int>
-  #  1 184401     0  1502
-  #2 184401     0  1517
-  #3 185201     0  2553
-  #4 185201     0  2570
-  #5 185201    10 22593
-  #6 185201    10 22652
-#so the bigsampletable insinuates pretty clearly that 4 samples, ranging 23231-23282, were sent to Funga and archived; i assume fall 2022;
-#... but there is no yst info or DATE_COLLECT on these so where can i look to see what ive already had someone package?
-#1. Is that in a funga doc? ("C:\Users\sabloszi\Dropbox (FPC)\FPC Team Folder\RegionWide Trials\Special Studies\Funga fungal microbiome\Funga FPC Site Summary 6-22-2022_Plotnumbers.csv")
-#.... Yes, it is; 4401 was sampled 7/25/2015 for the ones we sent to funga, and they came from boxes, so i assume we took some boxes out and left the rest where
-#... they were in the correugated box. So i am pretty confident that the numbers tim gave us ended up actually going to 2015, not 2013 samples like I 
-#... had asked him for, incorrectly. tds2023-11-13
-#2. So, now what? 
-#2.1 Let tim KNow that the samples that went to funga are two years newer than I said; also make sure he can still use/reassign these smaple numbers to the 2015 date and whether missing 2013 soil is bad
-#2.2 See whether the 185201 numbers are OK; does tim think these are 2015 or 2013? The tds2023-11-13 email from him sais 20130525
-#2.2.1 Can i tell what those numbers are in the rwdb? 
-# Yes, because it says yst 10 on both the rwdb and the tds2023-11-13 email xlsx
-#2.2.2 Therefore I also need to tell him these are 2015 soils and ask whether that changes the next steps
-stdy%>%
-  subset(STDY%in%c(185201 ,184401))%>%view()
-#ok so yst=0 is 2003 for 185201 and 2000 for 4401
-  #pick up here after tim replies. you should move this to a archive section or doc or something. 
-
-#get all the names of every column in every table 
-framnams1<-sapply(tblnams[1:31],function(x){names(sqlFetch(conn,x))})
-framnams2<-sapply(tblnams[32:61],function(x){names(sqlFetch(conn,x))}) #its in two parts bc it takes for ever on my computer at least
-#put whatever you want to search for in the grepl() function
-findnames<-function(x){grepl("(?i)REP", x)}
-#this shows you which tables have a column with that search in it
-lapply(framnams2,FUN = function(x){sum(findnames(x))})
-
-#nothing for spa
-#TPA
-franmams$dbo_DOMINANT_HEIGHT_1 #TPA_SUM, only one
-#PER
-franmams$dbo_STUDY_INFO #OPERATION_ID, ONLY ONE
-franmams$dbo_MICRO_TISSUE #COLLECTIONS PER YEAR, ONLY ONE
-franmams$dbo_MACRO_TISSUE #COLLECTIONS PER YEAR, ONLY ONE
-franmams$dbo_COMPANY_OPERATIONS #OPERATION_ID OPERATION NAME, ONLY 2
-#DENS
-#ONLY BULK DENSITY IN DBOPHYSSOIL
-
-
-
-grepl("(?i)regimen|promocion", c("Regimen","regimen","reximen"))
-
-
-#rw18s
-rw18old%>%pull(DATE_COLLECT)%>%unique()
-rw18old<- 
-  nut%>%
-  subset(.,STDY%in%c(184401)&DEPTH==2)%>%
-  pull(c(PLOT))%>%
-  expand.grid(5:9,.)%>%
-  mutate(.,STDY=184401,SAMPLING_LOCATION=3)%>%
-  select(STDY,Var2,Var1,SAMPLING_LOCATION)
-
-select(c(STDY,PLOT,DEPTH,DATE_COLLECT,SAMPLING_LOCATION))
-#d
-#get yst, sample #, and plots from new db
-nut%>%
-  subset(.,substr(STDY,1,2)=="18"&YST>=0)%>%
-  select(c(STDY,YST))%>%
-  melt(.,id.vars="STDY")%>%
-  cast(.,STDY~value)%>%
-  print()
-head()
-wex()
-
-#md
-rw18vt<-nut%>%
-  subset(.,substr(STDY,1,2)=="18"&YST=?????|grepl("ty_soil",Comments))
-
-
-rw18old2<-rw18old%>%select(c(STDY,YST,PLOT,DEPTH,DATE_COLLECT))
-rw18new2<-rw18new%>%select(c(STDY,YST,PLOT,DEPTH,`SAMPLE_#`))
-
-merge(rw18old2,rw18new2,by=c("STDY","YST","PLOT","DEPTH"))%>%
-  mutate(.,PLOT=as.integer(substr(PLOT,2,4)))%>%
-  select(c(STDY,PLOT))%>%unique()->fuckdb
-wex()
-
-
-pull(Comments)%>%unique()
-select(c(STDY,PLOT,DATE_COLLECT,`SAMPLE_#`,DEPTH))%>%
-  pull(DATE_COLLECT)%>%unique()
-unique()%>%
-  wex()
-#rw19s
-tree%>%
-  subset(.,STDY==195501&YST==12)%>%select(c(PLOT))%>%arrange(PLOT)%>%unique()
-
-stdy%>%subset(.,STDY==195501)%>%print()#names()->nms
-
-nut%>%subset(.,STDY==185302&YST>6)%>%wex()
-print()#names()->nms
-
-
-nms[grepl("THIN",nms)]
-
-#rw18s
-nut%>%
-  subset(.,STDY%in%c(994003,994004))%>%
-  select(c(STDY,PLOT,DATE_COLLECT,`SAMPLE_#`,DEPTH))%>%
-  unique()%>%
-  wex()
-
-
-
-dim()
-pull(STDY)%>%
-  substr(.,1,2)=="18"
-
-
-dim()
-unique()
-
-subset(.,STDY==994002|STDY==9180601|STDY==9181201|STDY==9201302)%>%
-  group_by(YST)%>%
-  summarise(range=max(`DATE_COLLECT`))
-
-20385-20432
-
-wex()
-dim()
-subset(.,year(DATE_COLLECT)==2013|(STDY==201302&year(DATE_COLLECT)!=2218)&DEPTH==8&PLOT%in%c(1520,1521,2520,2521,3520,3521))%>%
-  subset(.,(STDY>(181200)&DEPTH<7)|STDY%in%c(180601,201302))%>%
-  select(YST,STDY,DATE_COLLECT,PLOT,`SAMPLE_#`,DEPTH)%>%
-  str()
-wex()
-head()%>%
-  
-  pull(DATE_COLLECT)%>%
-  names()
-subset(.,STDY==201302&YST>8)%>%
-  wex()
-unique()%>%
-  arrange(STDY,YST)
-gdata::left(3)
-wex(stdy)
-#6	3 reps, MCP, hi and lo silviculture, 500 tpa
 #rw185201:read in----
 #setwd("C:/Users/seanb/")
 #setwd("C:/Users/sabloszi")
@@ -1784,7 +1531,7 @@ bench<-bench%>%
   pull(V1)%>%
   unique()%>%
   sort()
-#read in shit-----
+#read in text w read.table-----
 read.table(text="
            1110
 2110
@@ -1829,32 +1576,6 @@ read.table(text="
   duplicated()
 str()
 
-
-#combine or split pdfs-----
-
-setwd(
-  "Q:/Shared drives/FER - FPC Team/Website/Htmltables/wordpressdownloads/mlfd-forestproductivitycoop2"
-)
-qpdf::pdf_combine(input = 
-                    c("FPC2022_EarthEngineWorkshop1.pdf",
-                      "FPC2022_EarthEngineWorkshop2.pdf")
-  ,
-                  output = "FPC2022_EarthEngineWorkshop.pdf",)
-
-
-qpdf::pdf_combine(input = c("B:/20221215_ROSS_CLARK_CIR.pdf",
-                            "B:/20221215_ROSS_CLARK_CIR2.pdf"
-),
-output = "G:/My Drive/Studies/FPC/SharedFolderSean/Bloszies (1)/NCSU/Official/Pcard/Receipts/20221215_uspsdothan_doesoilsshipping.pdf")
-qpdf::pdf_combine(input = c(
-"Q:\\My Drive\\Studies\\FPC\\SharedFolderSean\\Bloszies (1)\\NCSU\\Official\\Pcard\\Receipts\\20231127_industrialmarkingpensCom_markers_584115_1.pdf",
-"Q:\\My Drive\\Studies\\FPC\\SharedFolderSean\\Bloszies (1)\\NCSU\\Official\\Pcard\\Receipts\\20231127_industrialmarkingpensCom_markers_584115_2.pdf"),
-output="Q:\\My Drive\\Studies\\FPC\\SharedFolderSean\\Bloszies (1)\\NCSU\\Official\\Pcard\\Receipts\\20231127_industrialmarkingpensCom_markers_584115.pdf")
-#i want to split a pdf into individual pages
-setwd("Q:/My Drive/Studies/FPC/SharedFolderSean/Bloszies (1)/NCSU/Official/Pcard/Receipts")
-pdf_split("PDFcopyofreceiptsinfolder.pdf", output = NULL, password = "")
-
-#fnas crtrlf afjatynfnwss pick up here 11/20 : see which pdfs of research summaries elijah hasnt done by going to https://drive.google.com/drive/folders/1hIYQAQkAil0VSnBHG5aA6WahP4kp3qoE?usp=drive_link aka the fer-fpc team > website folder
 
 #have need funga----
 read.table(text=
@@ -2152,6 +1873,328 @@ varrate	1
 need<-havned$need
 have<-havned$have
 need[!need%in%have]%>%unique()
+
+
+#heatmap------
+tree%>% #tree raw straight up from  rwdb
+  subset(STDY%in%c(180601,184501,184401,181502,281303))%>% 
+  select(STDY,PLOT,TREE_No)%>%
+  mutate(.,PT=paste0(PLOT,TREE_No))%>%
+  group_by(STDY)%>%
+  reframe(a=length(unique(PT)))->dat
+#split by study b/c its too big with all the studies
+a2<-
+dat%>%
+  split(.,.$STDY)%>%
+  lapply(.,function(x){
+    x<-as.data.frame(x)
+  mutate(x,sp=paste0(STDY,PLOT))})
+#make the figure
+ggplot(a2[[4]] , aes(x=as.factor(YST), y=sp, fill = a)) + 
+    geom_tile(color = "white", size = 0.1) + 
+    scale_x_discrete(expand=c(0,0)) + 
+    scale_y_discrete(expand=c(0,0)) + 
+    scale_fill_viridis(name="# of trs", option = "plasma") + 
+    coord_equal() + 
+    labs(x="Call hour", y=NULL, title=sprintf("trees")) + 
+    theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1))
+
+  
+  ## A tibble: 6 × 3
+  #STDY   YST     a
+  #<int> <dbl> <int>
+  #  1 184401     0  1502
+  #2 184401     0  1517
+  #3 185201     0  2553
+  #4 185201     0  2570
+  #5 185201    10 22593
+  #6 185201    10 22652
+#so the bigsampletable insinuates pretty clearly that 4 samples, ranging 23231-23282, were sent to Funga and archived; i assume fall 2022;
+#... but there is no yst info or DATE_COLLECT on these so where can i look to see what ive already had someone package?
+#1. Is that in a funga doc? ("C:\Users\sabloszi\Dropbox (FPC)\FPC Team Folder\RegionWide Trials\Special Studies\Funga fungal microbiome\Funga FPC Site Summary 6-22-2022_Plotnumbers.csv")
+#.... Yes, it is; 4401 was sampled 7/25/2015 for the ones we sent to funga, and they came from boxes, so i assume we took some boxes out and left the rest where
+#... they were in the correugated box. So i am pretty confident that the numbers tim gave us ended up actually going to 2015, not 2013 samples like I 
+#... had asked him for, incorrectly. tds2023-11-13
+#2. So, now what? 
+#2.1 Let tim KNow that the samples that went to funga are two years newer than I said; also make sure he can still use/reassign these smaple numbers to the 2015 date and whether missing 2013 soil is bad
+#2.2 See whether the 185201 numbers are OK; does tim think these are 2015 or 2013? The tds2023-11-13 email from him sais 20130525
+#2.2.1 Can i tell what those numbers are in the rwdb? 
+# Yes, because it says yst 10 on both the rwdb and the tds2023-11-13 email xlsx
+#2.2.2 Therefore I also need to tell him these are 2015 soils and ask whether that changes the next steps
+stdy%>%
+  subset(STDY%in%c(185201 ,184401))%>%view()
+#ok so yst=0 is 2003 for 185201 and 2000 for 4401
+  #pick up here after tim replies. you should move this to a archive section or doc or something. 
+
+#get all the names of every column in every table 
+framnams1<-sapply(tblnams[1:31],function(x){names(sqlFetch(conn,x))})
+framnams2<-sapply(tblnams[32:61],function(x){names(sqlFetch(conn,x))}) #its in two parts bc it takes for ever on my computer at least
+#put whatever you want to search for in the grepl() function
+findnames<-function(x){grepl("(?i)REP", x)}
+#this shows you which tables have a column with that search in it
+lapply(framnams2,FUN = function(x){sum(findnames(x))})
+
+#nothing for spa
+#TPA
+franmams$dbo_DOMINANT_HEIGHT_1 #TPA_SUM, only one
+#PER
+franmams$dbo_STUDY_INFO #OPERATION_ID, ONLY ONE
+franmams$dbo_MICRO_TISSUE #COLLECTIONS PER YEAR, ONLY ONE
+franmams$dbo_MACRO_TISSUE #COLLECTIONS PER YEAR, ONLY ONE
+franmams$dbo_COMPANY_OPERATIONS #OPERATION_ID OPERATION NAME, ONLY 2
+#DENS
+#ONLY BULK DENSITY IN DBOPHYSSOIL
+
+
+
+grepl("(?i)regimen|promocion", c("Regimen","regimen","reximen"))
+
+
+#rw18s
+rw18old%>%pull(DATE_COLLECT)%>%unique()
+rw18old<- 
+  nut%>%
+  subset(.,STDY%in%c(184401)&DEPTH==2)%>%
+  pull(c(PLOT))%>%
+  expand.grid(5:9,.)%>%
+  mutate(.,STDY=184401,SAMPLING_LOCATION=3)%>%
+  select(STDY,Var2,Var1,SAMPLING_LOCATION)
+
+select(c(STDY,PLOT,DEPTH,DATE_COLLECT,SAMPLING_LOCATION))
+#d
+#get yst, sample #, and plots from new db
+nut%>%
+  subset(.,substr(STDY,1,2)=="18"&YST>=0)%>%
+  select(c(STDY,YST))%>%
+  melt(.,id.vars="STDY")%>%
+  cast(.,STDY~value)%>%
+  print()
+head()
+wex()
+
+#md
+rw18vt<-nut%>%
+  subset(.,substr(STDY,1,2)=="18"&YST=?????|grepl("ty_soil",Comments))
+
+
+rw18old2<-rw18old%>%select(c(STDY,YST,PLOT,DEPTH,DATE_COLLECT))
+rw18new2<-rw18new%>%select(c(STDY,YST,PLOT,DEPTH,`SAMPLE_#`))
+
+merge(rw18old2,rw18new2,by=c("STDY","YST","PLOT","DEPTH"))%>%
+  mutate(.,PLOT=as.integer(substr(PLOT,2,4)))%>%
+  select(c(STDY,PLOT))%>%unique()->fuckdb
+wex()
+
+
+pull(Comments)%>%unique()
+select(c(STDY,PLOT,DATE_COLLECT,`SAMPLE_#`,DEPTH))%>%
+  pull(DATE_COLLECT)%>%unique()
+unique()%>%
+  wex()
+#rw19s
+tree%>%
+  subset(.,STDY==195501&YST==12)%>%select(c(PLOT))%>%arrange(PLOT)%>%unique()
+
+stdy%>%subset(.,STDY==195501)%>%print()#names()->nms
+
+nut%>%subset(.,STDY==185302&YST>6)%>%wex()
+print()#names()->nms
+
+
+nms[grepl("THIN",nms)]
+
+#rw18s
+nut%>%
+  subset(.,STDY%in%c(994003,994004))%>%
+  select(c(STDY,PLOT,DATE_COLLECT,`SAMPLE_#`,DEPTH))%>%
+  unique()%>%
+  wex()
+
+
+
+dim()
+pull(STDY)%>%
+  substr(.,1,2)=="18"
+
+
+dim()
+unique()
+
+subset(.,STDY==994002|STDY==9180601|STDY==9181201|STDY==9201302)%>%
+  group_by(YST)%>%
+  summarise(range=max(`DATE_COLLECT`))
+
+20385-20432
+
+wex()
+dim()
+subset(.,year(DATE_COLLECT)==2013|(STDY==201302&year(DATE_COLLECT)!=2218)&DEPTH==8&PLOT%in%c(1520,1521,2520,2521,3520,3521))%>%
+  subset(.,(STDY>(181200)&DEPTH<7)|STDY%in%c(180601,201302))%>%
+  select(YST,STDY,DATE_COLLECT,PLOT,`SAMPLE_#`,DEPTH)%>%
+  str()
+wex()
+head()%>%
+  
+  pull(DATE_COLLECT)%>%
+  names()
+subset(.,STDY==201302&YST>8)%>%
+  wex()
+unique()%>%
+  arrange(STDY,YST)
+gdata::left(3)
+wex(stdy)
+#6	3 reps, MCP, hi and lo silviculture, 500 tpa
+#pdfs combine or split-----
+
+setwd(
+  "Q:/My Drive/Studies/FPC/SharedFolderSean/Bloszies (1)/NCSU/Official/HR/Contracts"
+)
+
+qpdf::pdf_combine(input = 
+                    c(
+                      "Q:/My Drive/bleh.pdf"
+                      ,
+                      "C:/Users/sabloszi/Dropbox (FPC)/FPC Team Folder/RegionWide Trials/RW28/280601/data/280601_20231212.pdf"
+                      )
+  ,
+                  output = "C:/Users/sabloszi/Dropbox (FPC)/FPC Team Folder/RegionWide Trials/RW28/280601/data/280601_20231212-2.pdf",)
+
+
+qpdf::pdf_combine(input = c("B:/20221215_ROSS_CLARK_CIR.pdf",
+                            "B:/20221215_ROSS_CLARK_CIR2.pdf"
+),
+output = "G:/My Drive/Studies/FPC/SharedFolderSean/Bloszies (1)/NCSU/Official/Pcard/Receipts/20221215_uspsdothan_doesoilsshipping.pdf")
+qpdf::pdf_combine(input = c(
+"Q:\\My Drive\\Studies\\FPC\\SharedFolderSean\\Bloszies (1)\\NCSU\\Official\\Pcard\\Receipts\\20231127_industrialmarkingpensCom_markers_584115_1.pdf",
+"Q:\\My Drive\\Studies\\FPC\\SharedFolderSean\\Bloszies (1)\\NCSU\\Official\\Pcard\\Receipts\\20231127_industrialmarkingpensCom_markers_584115_2.pdf"),
+output="Q:\\My Drive\\Studies\\FPC\\SharedFolderSean\\Bloszies (1)\\NCSU\\Official\\Pcard\\Receipts\\20231127_industrialmarkingpensCom_markers_584115.pdf")
+#i want to split a pdf into individual pages
+setwd("Q:/My Drive/Studies/FPC/SharedFolderSean/Bloszies (1)/NCSU/Official/Pcard/Receipts")
+pdf_split("PDFcopyofreceiptsinfolder.pdf", output = NULL, password = "")
+
+#fnas crtrlf afjatynfnwss pick up here 11/20 : see which pdfs of research summaries elijah hasnt done by going to https://drive.google.com/drive/folders/1hIYQAQkAil0VSnBHG5aA6WahP4kp3qoE?usp=drive_link aka the fer-fpc team > website folder
+
+#qr codes-----
+
+read.table(text="
+PLOT
+2412
+2424
+1412
+2000
+2624
+2212
+1624
+1424
+2206
+1206
+1212
+1218
+1211
+2211
+1000
+2418
+2218
+1418
+",header=T)%>%
+  mutate(TREE_No=1:n(),STDY=311301)%>%
+  select(STDY,PLOT,TREE_No)%>%
+  mutate(.,fpcid=unite(.,fpcid))%>%
+pull(fpcid)%>%
+  head(2)->svgs
+
+svgs%>%apply(.,1,function(x){as.character(x)})%>%as.list()->svgsl
+
+setwd("C:/Users/sabloszi/AppData/Local/Temp/RtmpIbEs0v/delete")
+
+mkqr<-function(x){  
+qr_code(x)%>%
+  generate_svg(., filename = paste0(x,".svg"), show = T)}
+lapply(svgsl,mkqr)
+#gold leave it be and get it into other stuff
+
+#rwdb gold------
+#just define the connection to the db from R; doesn't create an object in the global env that has actual rwdb data in it
+#FRANCE, angelcruz13
+dbpath=normalizePath(paste0(gsub("\\\\Documents","",Sys.getenv("HOME")),("\\Dropbox (FPC)\\FPC Team Folder\\Static RWDB\\RWDB static 20221017.mdb")))
+#on france it looks like 
+#"C:\\Users\\sabloszi\\Dropbox (FPC)\\FPC Team Folder\\Static RWDB\\RWDB static 20221017.mdb" in R as a result of above
+#"C:\Users\sabloszi\Dropbox (FPC)\FPC Team Folder\Static RWDB\RWDB static 20221017.mdb" and this in the explorer path
+#GRADS
+dbpath=normalizePath(paste0(gsub("\\/Documents","",Sys.getenv("HOME")),("\\Dropbox (FPC)\\FPC Team Folder\\Static RWDB\\RWDB static 20221017.mdb")))
+conn<-odbcDriverConnect(paste0("Driver={Microsoft Access Driver (*.mdb, *.accdb)};DBQ=",dbpath))
+#This definitely works on FRANCE pc (laptop) 11/13/23; idk why it wont on the desktop cnr grad one
+
+#not sure what this one is for
+#conn<-odbcDriverConnect(  "Driver={Microsoft Access Driver (*.mdb, *.accdb)};DBQ=C:/Users/seanb/Dropbox (FPC)/FPC Team Folder/Static RWDB/RWDB static 20221017.mdb")#20221017
+#20221017.mdb, seanb
+#conn<-odbcDriverConnect("Driver={Microsoft Access Driver (*.mdb, *.accdb)};DBQ=C:/Users/seanb/Dropbox (FPC)/FPC Team Folder/Static RWDB/RWDB static 20221017.mdb")
+#20221017.mdb, sabloszi
+#conn<-odbcDriverConnect("Driver={Microsoft Access Driver (*.mdb, *.accdb)};DBQ=C:/Users/sabloszi/Dropbox (FPC)/FPC Team Folder/Static RWDB/RWDB static 20221017.mdb")
+#20221017.mdb, seanb?
+#conn<-odbcConnect("rwdb2022")   #new error 3/16/22- went to this b/c the driver path was "unknown" somehow
+#20210423.mdb, sabloszi
+#conn<-odbcDriverConnect("Driver={Microsoft Access Driver (*.mdb, *.accdb)};DBQ=C:/Users/sabloszi/Dropbox (FPC)/FPC Team Folder/Static RWDB/RWDB static 20210423.mdb")#
+#11156 in 2021, 11336 in 2022
+#11156 -11336 =180
+#see tables thats in it
+tblnams<-sqlTables(conn, tableType = "TABLE")$TABLE_NAME
+#create indiv tables as dfs
+nut<-sqlFetch(conn, "dbo_NUT_SOIL")
+dam<-sqlFetch(conn, "dbo_DAMAGE")
+mort<-sqlFetch(conn, "dbo_MORTALITY")
+splloc<-sqlFetch(conn,"dbo_SAMPLING_LOCATION")
+tree<-sqlFetch(conn,"dbo_TREE_GROWTH")
+stdy<-sqlFetch(conn,"dbo_STUDY_INFO")
+trts<-sqlFetch(conn,"dbo_TREATMENTS")
+sqlFetch(conn,"dbo_ACTIVITY_WORKPLAN")%>%wex()
+depths<-sqlFetch(conn,"dbo_DEPTH_CODES")
+sqlFetch(conn,"dbo_COMPANY_OPERATIONS")%>%
+  subset(OPERATION_ID!=140)%>%
+  subset(.,grepl("cock",OPERATION_NAME,ignore.case=T))
+wex(sqlFetch(conn,"dbo_DOMINANT_HEIGHT_1"))
+wex(sqlFetch(conn,"dbo_APPLIED_TREATMENTS"))
+(sqlFetch(conn,"dbo_SAMPLING_LOCATION"))
+
+#d
+#So 11/2023 trying to figure out which 184401 and 185201 soils are already in the rwdb, physical archive, and bigsample table or any other locations
+#1st, what sample nu,bers for 184401  and 185201 are there in the rwdb?
+tree%>%
+  #subset(STDY%in%c(184401))%>% #185201
+  subset(substr(STDY,1,2)==28)%>% #185201
+  select(STDY,YST,PLOT)%>% # `SAMPLE_#`,
+pull(STDY)%>%unique()%>%c(.,c(282201))wex()
+  #pull(PLOT)%>%
+  c(.,rw0645,rw22)%>%
+  unique()%>%
+wex()
+
+#delete
+#280606
+rw0645<-read.csv("C:/Users/sabloszi/Dropbox (FPC)/FPC Team Folder/RegionWide Trials/RW28/Workplan/RW28 Workplan 20200522_trt_codes_only.csv",header=T)%>%
+  pull(raw28)
+read.table(text="
+2412
+2424
+1412
+2000
+2624
+2212
+1624
+1424
+2206
+1206
+1212
+1218
+1211
+2211
+1000
+2418
+2218
+1418
+",header=F)%>%pull(V1)->rw22
+#menddelete
+
 
 
 #shauna's organization of boxes-----
@@ -2550,27 +2593,49 @@ outer(c(1000,2000,3000,4000),c(0,  361,  360,  481,  480,  721,  720,  108),FUN 
 
 
 #google sheets read inn=-----
-#STUDY	PLOT	Tree	Ht,  ft.in	HTLC,ft.in	dbh,mm	RCD,mm	Mortality	Damage code	 dam	row end?	Notes	date																	
 #fuck<-gsheet2tbl('https://docs.google.com/spreadsheets/d/1foGV8kUzgDiTsx0coouDvG0TWm7eks7DYMZt0Gx-e_4/edit#gid=1283512166')
 link_to_Gsheets <- "https://docs.google.com/spreadsheets/d/1foGV8kUzgDiTsx0coouDvG0TWm7eks7DYMZt0Gx-e_4/edit#gid=1283512166"
 
-datadbh282201<-read_sheet(link_to_Gsheets, sheet="282201")
-datadbh281303<-read_sheet(link_to_Gsheets, sheet="281303")
+#if you dont do the coltypes it fucks up and gets lists from some columns which is hard to deal with
+datadbh311301<-read_sheet(link_to_Gsheets, sheet="311301",col_types = "iiinnncccc--")
 
 #see trees per plot
 #datadbh281303%>%
-datadbh282201%>%
-  as.data.table()%>%
-  dplyr::select(c(PLOT,dbh))%>% #select is comgin from somewhere else if not explicit
-  melt(.,id.vars="PLOT")%>%
+datadbh311301%>%
+  as.data.frame()%>%
+  dplyr::select(c(PLOT,MORT))%>% #select is comgin from somewhere else if not explicit
+  melt(id.vars=c("PLOT"))%>%
   cast(PLOT~variable)%>%
-  print
+    print()
 
-is.num
 datadbh <-  link_to_Gsheets %>%
   sheet_names() %>% #get names
   set_names()  #give names
 #%>%  map_df(read_sheet, ss = link_to_Gsheets, .id = "Cut") #if you want to combine sheets (usually you wouldnt unless they are essentially the same ; this is like rbindrows more or less)
+
+#read in the fieldmaps data, and format it so it will rbind nicely
+datadbh3113012<-read.csv(  "C:/Users/angelcruz13/Dropbox (FPC)/FPC Team Folder/RegionWide Trials/RW31_Funga/311301 BLSF/Data/311301_20240117_htlc-ht-dbh-dam-mort.csv")%>%
+  rename_with(.fn = function(x){gsub("L0TREE_points.","",x)})%>%
+  select(-OBJECTID)%>%
+  rename_with(.fn = function(x){gsub("TREEview_AddSpatialJoin.","",x)})%>%
+  select(Id,TREE_No,NEW_MORT,NEW_DAM,NEW_HT,	NEW_HTLC,	NEW_DBH,New_Comments)%>%
+  rename_with(.fn = function(x){gsub("NEW_","",x,ignore.case=T)})%>%
+rename(PLOT="Id")%>%
+  mutate(.,STUDY=311301)%>%
+  mutate(.,date=20240117)
+
+#then rbind that with the data from the lab
+list(datadbh3113012,(datadbh311301))%>%
+rbindlist(fill=T)%>%
+    subset(PLOT%in%1:16)%>% #not sure how but one tree from testing at Sean's house ended up with the BLSF data; delete it and subset against it by picking ones with plot names only
+  mutate_at(vars(MORT), ~replace(., .=="", "A"))%>% #there are blanks for the mort and they need to say A bc we were skipping entering A on t he paper and app to save time
+  mutate_at(vars(DAM), ~replace(., .==""&MORT!="Y", "A"))%>% #make the dam's A for blank dam's only if it's not a dead tree
+  write.csv("C:/Users/angelcruz13/Dropbox (FPC)/FPC Team Folder/RegionWide Trials/RW31_Funga/311301 BLSF/Data/311301_20240118_htlc-ht-dbh-dam-mort.csv")
+
+  # 
+
+
+  
 
 #ocr------
 #
@@ -2985,23 +3050,30 @@ mindex<-mapply(function(x,y){list(list(basep=x,restnmd=y))}, #y is suppoed to be
 #actual search-----
 #gold
 #Define the search
-sirch="contacts_FPC.csv"
+sirch="right"
+sirch2="of"
+sirch3="entry"
 #do the search
 system.time(
 u7s<-mindex%>% #.1 seconds
   lapply(., function(x) #https://stackoverflow.com/questions/14052612/extract-value-of-the-same-field-from-multiple-list-object-in-r
     x[["restnmd"]]
   )%>%
-    lapply(., function(ch) subset(ch,grepl(sirch,ch,ignore.case=T)))
+    lapply(., function(ch) subset(ch,grepl(sirch,ch,ignore.case=T)&
+#                                    grepl(sirch2,ch,ignore.case=T)&
+                                  grepl(sirch3,ch,ignore.case=T)))
 )
 
 nmchfls[names(nmchfls)==names(u7s)]
 
-mapply(function(x,y){
+sresults<-mapply(function(x,y){
   paste0(x,"/",y)
 },
 nmchfls,
 u7s   )
+sresults%>%unlist%>%subset(grepl("pdf",ignore.case = T,.))
+
+
 #end of runthrough
 #crtrlf afjatynfnwss delete this line after fixing elijahs pdfs
 
@@ -3185,12 +3257,19 @@ k <- str_extract_all(j, "\\([^()]+\\)")[[1]]
 k <- substring(k, 2, nchar(k)-1)
 
 #github-----
+#not much happens in the R script, just need to set the wd then go to the terminal
 setwd("Q:/My Drive/Studies/FPC/Scripts")
+#not sure what this load thing was for, i think its for returning to a previous workspace image or whatever
 #load(".RData2")
+#if you wan to look at the wd:
 wael()
+#the simplest terminal procedures are : (full procedures are on Protocols_NCSU_FPC.gdoc)
+#1. git add FPC.R
+#2. git commit -m"added all the semi-finished survey123 json stuff"
+#3. git push origin main
 
-#IP-----
-fromJSON(readLines("http://api.hostip.info/get_json.php", warn=F))$ip
+#then that's it, it pops up in the github. 
+
 #GET treedata  from json survey123-----
 LS1<-fromJSON(file="C:/Users/sabloszi/Desktop/delete/FUCK.json"
 )
@@ -3387,60 +3466,82 @@ mutate(PLOT=substr((gsub("281303","",PLOTTREE)),1,4))%>%
     "C:/Users/sabloszi/Dropbox (FPC)/FPC Team Folder/RegionWide Trials/RW28/281303/Data/201303_20231207_htlc-ht-dbh-dam-mort_TREE-survey123phone.csv")
 
 
-#ok so pick up here, why is like one plot missing and wheres the other half of that one plot?
-#ok i found them they are in :"C:\Users\sabloszi\Desktop\dontdeleteArcgis\a084e65cd9403d813e8ec667ca329a64.sqlite"
-#just get the last two i think? anywasy theyre pretty obvious
+#put pieces back together again with the setres yst3------
+setwd(  "C:/Users/sabloszi/Dropbox (FPC)/FPC Team Folder/RegionWide Trials")
 
-trlvb%>%
-  pull(PLOTTREE)%>%
-  substr(.,7,10)%>%unique()
-
-LS2$TreeGroDat$Plots%>%
-  Unlist(.,depth=0)%>%str()
-
-#what does one tree look like?
-LS2$TreeGroDat$Plots[[1]]$TREE[[1]]
-
-#what if i want specifc fields?
-  LS2$TreeGroDatUnpub$Plots[[1]]$TREE[[1]][c("HT","countnum")]
-
-
- 
-#trash?:   
-#How bout for more plots? 
-#note this wasnt working as of 1/2
-lplts<-lapply(1:2,function(n){
+#plot 1000 got to the cloud successfully but its htlc was integer so it didnt merge; you need to put that htlc back in a step further below
+cloud<-  read_excel(paste0(getwd(),"/GIS/GIS for FPC WORKING 2021/RW28s/281303/gisdata/treeMeasure/TREETreeGroDatPub_TableToExcel_plot1000.xlsx"),
+                  sheet="1",#skip=1,col_names =c("baeid_1","tocmgl_1","baeid_2","tocmgl_2"), 
+                  #     col_types = c("numeric","skip","numeric","skip","skip","numeric","skip","numeric"),
+                  trim_ws = T )%>%
+  select(HTLC,PLOTTREE)%>%
+  mutate(.,HTLC=(substr(HTLC, 2, nchar(HTLC))))%>%
+  mutate(HTLC=as.numeric(paste0("0.",HTLC)))
   
-  inside<-list()
+
+#heres the data that was on phones plus most of the stuff in the cloud togeter
+phone<-read_excel(paste0(getwd(),"/GIS/GIS for FPC WORKING 2021/RW28s/281303/gisdata/treeMeasure/TREEsurvey123phone_TableToExcel.xlsx"),
+                sheet="TREEsurvey123phone",#skip=1,col_names =c("baeid_1","tocmgl_1","baeid_2","tocmgl_2"), 
+                #     col_types = c("numeric","skip","numeric","skip","skip","numeric","skip","numeric"),
+                trim_ws = T )
+#phone$
+phone%>%
+mutate(PLOT2=substr((gsub("281303","",PLOTTREE)),1,4))%>%
+#  subset(GPS_location_y<35)%>%
+#  subset(GPS_location_y>34)%>%
+#  select(!contains("GPS_location_"))%>%
+  subset(!is.na(PLOT2))%>%
+  mutate(PLOT=replace_na(PLOT,0))%>%
+subset(!is.na(MORT))%>%
+  mutate(.,TREE_No=as.numeric(TREE_No))%>%
+    mutate(.,TREE_No2=as.numeric(
+  str_replace(PLOTTREE,PLOT2,"")
+      ))%>%
+  mutate(.,TREE_No2=as.numeric(
+    str_replace(TREE_No2,"281303","")
+    ))%>%
+  mutate(.,TREE_No3=coalesce(TREE_No2,TREE_No))%>%
+  mutate(.,TREE_No3=coalesce(TREE_No3,as.numeric(countnumsave)))%>%
+#  subset(TREE_No!=TREE_No2)%>% note there are a few in plot 1000 that have differnt tree numbers here at 64 65 and 66
+  subset(!(PLOT2%in%c(3150)&is.na(huh)))%>%
+#  mutate(PLOT=replace_na(TREE_No3,0))%>%
+  mutate(.,TREE_No3=if_else(huh==8,TREE_No3+64,TREE_No3,missing=TREE_No3))%>%
+  mutate(.,vm2=cumsum(!duplicated(interaction(PLOT2,TREE_No3+1000))))%>%  
+  #select(huh,TREE_No3,TREE_No2,TREE_No,PLOT2,PLOT,PLOTTREE,MORT,HT,CommentsTree,vm2)%>%
+  subset(.,!duplicated(vm2))%>%
+#  subset(PLOT2%in%c(3150,4151,4150))%>%
+select(  OID,	huh,	GPS_location_horizontalAccuracy,	GPS_location_satellitesInUse_1,	GPS_location_verticalAccuracy,	GPS_location_x,	GPS_location_y,	GPS_location_z,	MORT,	PLOTTREE,	accuracy,	countnumsave,	PLOT2,	TREE_No3,	globalid,	parentglobalid,	DAM,	DBH,	HT,	HTLC1,	CommentsTree,	RE_L)%>%
+  merge(.,cloud,by="PLOTTREE",all=T)%>%
+  arrange(PLOT2,TREE_No3)%>%
+  mutate(HTLC=coalesce(HTLC1,as.character(HTLC)))%>%
+  select(-HTLC1)%>%
+  write.csv(
+    "C:/Users/sabloszi/Dropbox (FPC)/FPC Team Folder/RegionWide Trials/GIS/GIS for FPC WORKING 2021/RW28s/281303/gisdata/treeMeasure/TREE_survey123all.csv"
+  )
+  #pick up doing some qc then merge with the paper
+    
+  sub
   
-  plotz<-  
-    lapply(LS2$TreeGroDatUnpub$Plots[[n]]$TREE[],function(x){
-      Unlist(x,depth = 0)%>%
-        as.list()%>%
-        data.frame()
-    }
-    )%>%
-    rbind.fill()
-  
-  inside[[n]]<-plotz  
-})
-
-
-
-
-  fromJSON()
-  str()
-
-
-
-#ok but can we get that in a table?
-#1st lets see what one tree looks like:
-LS2$TreeGroDat$Plots[[1]]%>%
-  Unlist(depth = 0)%>%
-  as.list()%>%
-  as.data.frame()%>%
   dim()
-#Ok its huge bc it is all the trees on one row
 
-#what if i want to just make a list and get stuff from one higher level back in with the lower levels?
+
+
+#breaking arcgis fieldmaps
+  
+data.frame(TREE_No=c(1,2,3),
+           HT=c(2.6,1.7,1.2),
+           DBH=c(55.2,49.1,71.3),
+           MORT=c("a","b","c"),
+           DAM=c("E","E","F"),
+           Comments=c("RE",NA,NA))%>%
+  mutate(pladoh=paste0(HT,DBH,MORT,DAM,Comments,sep=" - "))
+
+
+paste0("a","n",sep="",collapse="   asasdasd")
+#get the columns separated in one cell somehow
+
+
+  print()
+  
+  
 
