@@ -1577,6 +1577,57 @@ read.table(text="
 str()
 
 
+#google sheets read inn=-----
+#fuck<-gsheet2tbl('https://docs.google.com/spreadsheets/d/1foGV8kUzgDiTsx0coouDvG0TWm7eks7DYMZt0Gx-e_4/edit#gid=1283512166')
+link_to_Gsheets <- "https://docs.google.com/spreadsheets/d/1foGV8kUzgDiTsx0coouDvG0TWm7eks7DYMZt0Gx-e_4/edit#gid=1283512166"
+
+#if you dont do the coltypes it fucks up and gets lists from some columns which is hard to deal with
+datadbh311301<-read_sheet(link_to_Gsheets, sheet="311301",col_types = "iiinnncccc--")
+
+#see trees per plot
+#datadbh281303%>%
+datadbh311301%>%
+  as.data.frame()%>%
+  dplyr::select(c(PLOT,MORT))%>% #select is comgin from somewhere else if not explicit
+  melt(id.vars=c("PLOT"))%>%
+  cast(PLOT~variable)%>%
+    print()
+
+datadbh <-  link_to_Gsheets %>%
+  sheet_names() %>% #get names
+  set_names()  #give names
+#%>%  map_df(read_sheet, ss = link_to_Gsheets, .id = "Cut") #if you want to combine sheets (usually you wouldnt unless they are essentially the same ; this is like rbindrows more or less)
+
+#read in the fieldmaps data, and format it so it will rbind nicely
+datadbh3113012<-read.csv(  "C:/Users/angelcruz13/Dropbox (FPC)/FPC Team Folder/RegionWide Trials/RW31_Funga/311301 BLSF/Data/311301_20240117_htlc-ht-dbh-dam-mort.csv")%>%
+  rename_with(.fn = function(x){gsub("L0TREE_points.","",x)})%>%
+  select(-OBJECTID)%>%
+  rename_with(.fn = function(x){gsub("TREEview_AddSpatialJoin.","",x)})%>%
+  select(Id,TREE_No,NEW_MORT,NEW_DAM,NEW_HT,	NEW_HTLC,	NEW_DBH,New_Comments)%>%
+  rename_with(.fn = function(x){gsub("NEW_","",x,ignore.case=T)})%>%
+rename(PLOT="Id")%>%
+  mutate(.,STUDY=311301)%>%
+  mutate(.,date=20240117)
+
+#read in RE row end data
+res<-read.csv("C:/Users/sabloszi/Dropbox (FPC)/FPC Team Folder/RegionWide Trials/RW31_Funga/311301 BLSF/Data/311301_20240117_htlc-ht-dbh-dam-mort_RE.csv",header=T)
+
+
+#then rbind that with the data from the lab
+ list(datadbh3113012,(datadbh311301))%>%
+rbindlist(fill=T)%>%
+    subset(PLOT%in%1:16)%>% #not sure how but one tree from testing at Sean's house ended up with the BLSF data; delete it and subset against it by picking ones with plot names only
+  mutate_at(vars(MORT), ~replace(., .=="", "A"))%>% #there are blanks for the mort and they need to say A bc we were skipping entering A on t he paper and app to save time
+  mutate_at(vars(DAM), ~replace(., .==""&MORT!="Y", "A"))%>% #make the dam's A for blank dam's only if it's not a dead tree
+   merge(.,res,by=c("PLOT","TREE_No"),all=T)%>%
+  mutate(Comments=(na_if(Comments,"")))%>%
+  mutate(New_Comments=(na_if(New_Comments,"")))%>%
+   mutate(.,Comments=coalesce(Comments,New_Comments))%>%
+  write.csv("C:/Users/sabloszi/Dropbox (FPC)/FPC Team Folder/RegionWide Trials/RW31_Funga/311301 BLSF/Data/311301_202401XX_htlc-ht-dbh-dam-mort.csv")
+
+
+  
+
 #have need funga----
 read.table(text=
              "have	need
@@ -2079,9 +2130,9 @@ pdf_split("PDFcopyofreceiptsinfolder.pdf", output = NULL, password = "")
 read.table(text="
 PLOT
 2412
-2424
-1412
+2412
 2000
+1412
 2624
 2212
 1624
@@ -2097,21 +2148,51 @@ PLOT
 2218
 1418
 ",header=T)%>%
-  mutate(TREE_No=1:n(),STDY=311301)%>%
+  mutate(TREE_No=c(1,2,1:16),STDY=311301)%>%
   select(STDY,PLOT,TREE_No)%>%
   mutate(.,fpcid=unite(.,fpcid))%>%
 pull(fpcid)%>%
-  head(2)->svgs
+  head(3)->svgs
+
+
+qr_code("311301_2215_14",ecl = "Q")%>%
+  plot()
+
+#plot list of all plots-----
+list("281502"=c(1502,1503),
+     "284501"=c(1600,1999))%>%
+    bind_rows()%>%as.data.frame()%>%
+    melt()
+
+list(
+       "284501"=c(2721,2360,2480,2361,2108,2481,1108,1721,1481,1000,1360,1361,1720,2720,1480,2000),
+     "281502"=c(1480,2721,2361,2108,2720,2480,1108,1481,1360,1720,2481,1361,1721,2000,1000,2360),
+     "284401"=c(1000,1481,2360,2720,1480,1720,2481,1108,1361,2108,2000,2480,1721,2721,2361,1360)
+     )%>%
+  bind_rows()%>%as.data.frame()%>%
+  melt()%>%
+  arrange(variable,value)%>%
+  rename(STDY=variable,PLOT=value)%>%
+  mutate(unite(.,STDY_PLOT))%>%
+  select(STDY_PLOT)%>%
+  expand_grid(1:40)%>%
+  as.data.frame()%>%
+mutate(unite(.,STDY_PLOT_TreeNo))%>%
+  select(STDY_PLOT_TreeNo)->svgs
 
 svgs%>%apply(.,1,function(x){as.character(x)})%>%as.list()->svgsl
 
-setwd("C:/Users/sabloszi/AppData/Local/Temp/RtmpIbEs0v/delete")
+dir.create("Q:/My Drive/Studies/FPC/SharedFolderSean/Bloszies (1)/NCSU/CNR/FER/FPC/Lab/Inventories/Trees/ids")
+setwd(  "Q:/My Drive/Studies/FPC/SharedFolderSean/Bloszies (1)/NCSU/CNR/FER/FPC/Lab/Inventories/Trees/ids")
 
-mkqr<-function(x){  
-qr_code(x)%>%
-  generate_svg(., filename = paste0(x,".svg"), show = T)}
-lapply(svgsl,mkqr)
+mkqr<-function(x){
+  qr_code(x,ecl="Q")%>%
+    generate_svg(., filename = paste0(x,".svg"), show = F)}
+
 #gold leave it be and get it into other stuff
+lapply(svgsl,mkqr)
+write.csv(svgs,"STDY_PLOT_TreeNoID.csv")
+  
 
 #rwdb gold------
 #just define the connection to the db from R; doesn't create an object in the global env that has actual rwdb data in it
@@ -2591,51 +2672,6 @@ outer(c(1000,2000,3000,4000),c(0,  361,  360,  481,  480,  721,  720,  108),FUN 
   wex()
 
 
-
-#google sheets read inn=-----
-#fuck<-gsheet2tbl('https://docs.google.com/spreadsheets/d/1foGV8kUzgDiTsx0coouDvG0TWm7eks7DYMZt0Gx-e_4/edit#gid=1283512166')
-link_to_Gsheets <- "https://docs.google.com/spreadsheets/d/1foGV8kUzgDiTsx0coouDvG0TWm7eks7DYMZt0Gx-e_4/edit#gid=1283512166"
-
-#if you dont do the coltypes it fucks up and gets lists from some columns which is hard to deal with
-datadbh311301<-read_sheet(link_to_Gsheets, sheet="311301",col_types = "iiinnncccc--")
-
-#see trees per plot
-#datadbh281303%>%
-datadbh311301%>%
-  as.data.frame()%>%
-  dplyr::select(c(PLOT,MORT))%>% #select is comgin from somewhere else if not explicit
-  melt(id.vars=c("PLOT"))%>%
-  cast(PLOT~variable)%>%
-    print()
-
-datadbh <-  link_to_Gsheets %>%
-  sheet_names() %>% #get names
-  set_names()  #give names
-#%>%  map_df(read_sheet, ss = link_to_Gsheets, .id = "Cut") #if you want to combine sheets (usually you wouldnt unless they are essentially the same ; this is like rbindrows more or less)
-
-#read in the fieldmaps data, and format it so it will rbind nicely
-datadbh3113012<-read.csv(  "C:/Users/angelcruz13/Dropbox (FPC)/FPC Team Folder/RegionWide Trials/RW31_Funga/311301 BLSF/Data/311301_20240117_htlc-ht-dbh-dam-mort.csv")%>%
-  rename_with(.fn = function(x){gsub("L0TREE_points.","",x)})%>%
-  select(-OBJECTID)%>%
-  rename_with(.fn = function(x){gsub("TREEview_AddSpatialJoin.","",x)})%>%
-  select(Id,TREE_No,NEW_MORT,NEW_DAM,NEW_HT,	NEW_HTLC,	NEW_DBH,New_Comments)%>%
-  rename_with(.fn = function(x){gsub("NEW_","",x,ignore.case=T)})%>%
-rename(PLOT="Id")%>%
-  mutate(.,STUDY=311301)%>%
-  mutate(.,date=20240117)
-
-#then rbind that with the data from the lab
-list(datadbh3113012,(datadbh311301))%>%
-rbindlist(fill=T)%>%
-    subset(PLOT%in%1:16)%>% #not sure how but one tree from testing at Sean's house ended up with the BLSF data; delete it and subset against it by picking ones with plot names only
-  mutate_at(vars(MORT), ~replace(., .=="", "A"))%>% #there are blanks for the mort and they need to say A bc we were skipping entering A on t he paper and app to save time
-  mutate_at(vars(DAM), ~replace(., .==""&MORT!="Y", "A"))%>% #make the dam's A for blank dam's only if it's not a dead tree
-  write.csv("C:/Users/angelcruz13/Dropbox (FPC)/FPC Team Folder/RegionWide Trials/RW31_Funga/311301 BLSF/Data/311301_20240118_htlc-ht-dbh-dam-mort.csv")
-
-  # 
-
-
-  
 
 #ocr------
 #
