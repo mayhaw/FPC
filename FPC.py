@@ -1,11 +1,12 @@
 #how to pste/contat in py
 " ".join(['yourself','go']) 
 
-#Get area of polygons from shapefiles
+#region Get area of polygons from shp gpkg etc
 import sys
 import pip
 #is geopandas installed(?)?
 'geopandas' in sys.modules
+#you get "False" the first time you install python , pylance, whatever it is idk
 import geopandas as gpd
 #run this in cmd: pip install geopandas
 #python -m ensurepip --default-pip
@@ -39,18 +40,19 @@ import pandas as pd
 import geopandas as gpd
 path="/Users/sabloszi/Dropbox (FPC)/FPC Team Folder/RegionWide Trials/GIS/GIS for FPC WORKING 2021"
 os.chdir(path)
+#file="/Users/sabloszi/Dropbox (FPC)/FPC Team Folder/RegionWide Trials/Special Studies/Funga fungal microbiome/Funga_BLSF_site_updated_with_plot_numbers.gpkg"
 file="RW28s/280601/180601PlotBoundaries.shp"
-file="RW28s/284501/T184501PlotBoundaries_update.shp"
+file="RW28s/284501/T184501PlotBoundaries_update.shp"#T184501PlotBoundaries_update
 file="RW18s/181502/181502PlotBoundaries.shp"
 file="RW18s/184401/184401PlotBoundaries.shp"
 file="RW28s/281303/281303_Plots.shp"
-gdf = gpd.read_file(file)
+file="RW28s/282201/282201/282201.gdb"
+gdf = gpd.read_file(file,layer='T184501PlotBoundaries_update') #T184501PlotBoundaries_update plotboundaries2023trt #this needs to be the layer of the active file
 gdf = gdf['geometry'].to_crs({'proj':'cea'}) 
 df = pd.DataFrame(gdf.area)
+df = (df/10000)/.4046 #if its in sq meters and you want it in ac
+#df = df/43560 #if its in sq ft and you want it in ac
 df.to_clipboard(index=False,header=False)
 #test
 450*6
-
-
-
-
+#endregion
