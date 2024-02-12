@@ -1531,52 +1531,38 @@ bench<-bench%>%
   pull(V1)%>%
   unique()%>%
   sort()
-#read in text w read.table-----
-read.table(text="
-           1110
-2110
-4110
-3110
-2010
-4010
-3010
-1010
-1120
-2120
-4020 
-4120
-3020
-2020
-1020
-3120
-1130
-4130
-2030
-2130
-3130
-1030
-3030
-1100
-1190
-3090
-2100
-2000
-4190
-4100
-4090 
-4000
-3190
-2090
-3100
-2190
-3000
-1090 
-1000
-")%>%
-  duplicated()
-str()
+#ecm to survey123------
+#you can recreate this if you go to an email Mon, Feb 5, 3:52PM from talbaugh@vt.edu "Ca trials at Hofmann" and get all those excel attachments:
+setwd("C:/Users/sabloszi/Downloads")
+
+list(
+ca994001=read_excel(paste0(getwd(),"/994001 ECM(1).xlsx"),#nevermind all the "(1)"'s on these file names thats just bc i made an exact copy of the original at some point
+                sheet="994001", 
+                trim_ws = T ),
+ca994002=read_excel(paste0(getwd(),"/994002 ECM(1).xlsx"),
+           sheet="994002", 
+           trim_ws = T ),
+ca994003=read_excel(paste0(getwd(),"/994003 ECM(1).xlsx"),
+           sheet="994003", 
+           trim_ws = T ),
+ca994004=read_excel(paste0(getwd(),"/994004 ECM(1).xlsx"),
+           sheet="994004", 
+           trim_ws = T ))%>%
+  rbindlist()%>%
+  select(c(STUDY,PLOT,TREE_No,
+           HT,#HT_L is what it becomes
+           HTLC,#HTLC_L
+           DBH,#	DBH_L,
+           MORT,
+           DAM))%>%
+wex() #i put this on the following media csv I got from treegrodat: C:\Users\sabloszi\ArcGIS\My Survey Designs\TreeGroDat3\media\TreeGroDat_LASTYEAR.csv , below all the 28s data
 
 
+
+
+  
+994004
+#F
 #google sheets read inn=-----
 #fuck<-gsheet2tbl('https://docs.google.com/spreadsheets/d/1foGV8kUzgDiTsx0coouDvG0TWm7eks7DYMZt0Gx-e_4/edit#gid=1283512166')
 link_to_Gsheets <- "https://docs.google.com/spreadsheets/d/1foGV8kUzgDiTsx0coouDvG0TWm7eks7DYMZt0Gx-e_4/edit#gid=1283512166"
@@ -2095,20 +2081,37 @@ unique()%>%
 gdata::left(3)
 wex(stdy)
 #6	3 reps, MCP, hi and lo silviculture, 500 tpa
+#I
+#J
+#K
+#L
+#M
+#N
+#O
 #pdfs combine or split-----
 
 setwd(
   "Q:/My Drive/Studies/FPC/SharedFolderSean/Bloszies (1)/NCSU/Official/HR/Contracts"
-)
+  )
 
 qpdf::pdf_combine(input = 
                     c(
-                      "Q:/My Drive/bleh.pdf"
+                      "Access Agreement NC-FPC_2023_v1 -1.pdf"
                       ,
-                      "C:/Users/sabloszi/Dropbox (FPC)/FPC Team Folder/RegionWide Trials/RW28/280601/data/280601_20231212.pdf"
+                      "PotlatchDeltic Corporation - North Carolina State University - 24011929333041 - 570103657335"
+                    )
+                  ,
+                  output = "Independent-Contractor-Agreement_Rantizo_20242.pdf",)
+
+
+qpdf::pdf_combine(input = 
+                    c(
+"Independent-Contractor-Agreement_Rantizo_2024.pdf"
+                      ,
+"Independent-Contractor-Agreement_Rantizo_2024_Scope.pdf"
                       )
   ,
-                  output = "C:/Users/sabloszi/Dropbox (FPC)/FPC Team Folder/RegionWide Trials/RW28/280601/data/280601_20231212-2.pdf",)
+                  output = "Independent-Contractor-Agreement_Rantizo_2024.pdf",)
 
 
 qpdf::pdf_combine(input = c("B:/20221215_ROSS_CLARK_CIR.pdf",
@@ -2124,6 +2127,48 @@ setwd("Q:/My Drive/Studies/FPC/SharedFolderSean/Bloszies (1)/NCSU/Official/Pcard
 pdf_split("PDFcopyofreceiptsinfolder.pdf", output = NULL, password = "")
 
 #fnas crtrlf afjatynfnwss pick up here 11/20 : see which pdfs of research summaries elijah hasnt done by going to https://drive.google.com/drive/folders/1hIYQAQkAil0VSnBHG5aA6WahP4kp3qoE?usp=drive_link aka the fer-fpc team > website folder
+
+#plot list of all plots-----
+list("281502"=c(1502,1503),
+     "284501"=c(1600,1999))%>%
+    bind_rows()%>%as.data.frame()%>%
+    melt()
+
+list(
+
+     "284501"=c(2721,2360,2480,2361,2108,2481,1108,1721,1481,1000,1360,1361,1720,2720,1480,2000),
+     "281502"=c(1480,2721,2361,2108,2720,2480,1108,1481,1360,1720,2481,1361,1721,2000,1000,2360),
+     "284401"=c(1000,1481,2360,2720,1480,1720,2481,1108,1361,2108,2000,2480,1721,2721,2361,1360)
+     )%>%
+  bind_rows()%>%as.data.frame()%>%
+  melt()%>%
+  arrange(variable,value)%>%
+  rename(STDY=variable,PLOT=value)%>%
+mutate(.,PLOTgood=gsub("481","722",PLOT))%>%
+mutate(.,PLOTgood=gsub("721","961",PLOT))%>%
+mutate(.,PLOTgood=gsub("108","960",PLOT))%>%
+  #  mutate(unite(.,STDY_PLOT))%>%
+#  select(STDY_PLOT)%>%
+#  expand_grid(1:40)%>%
+as.data.frame()%>%
+  subset(.,STDY=="284501")%>%
+wex()
+
+
+
+svgs%>%apply(.,1,function(x){as.character(x)})%>%as.list()->svgsl
+
+dir.create("Q:/My Drive/Studies/FPC/SharedFolderSean/Bloszies (1)/NCSU/CNR/FER/FPC/Lab/Inventories/Trees/ids")
+setwd(  "Q:/My Drive/Studies/FPC/SharedFolderSean/Bloszies (1)/NCSU/CNR/FER/FPC/Lab/Inventories/Trees/ids")
+
+mkqr<-function(x){
+  qr_code(x,ecl="Q")%>%
+    generate_svg(., filename = paste0(x,".svg"), show = F)}
+
+#gold leave it be and get it into other stuff
+lapply(svgsl,mkqr)
+write.csv(svgs,"STDY_PLOT_TreeNoID.csv")
+  
 
 #qr codes-----
 
@@ -2158,42 +2203,53 @@ pull(fpcid)%>%
 qr_code("311301_2215_14",ecl = "Q")%>%
   plot()
 
-#plot list of all plots-----
-list("281502"=c(1502,1503),
-     "284501"=c(1600,1999))%>%
-    bind_rows()%>%as.data.frame()%>%
-    melt()
+#read in text w read.table-----
+read.table(text="
+           1110
+2110
+4110
+3110
+2010
+4010
+3010
+1010
+1120
+2120
+4020 
+4120
+3020
+2020
+1020
+3120
+1130
+4130
+2030
+2130
+3130
+1030
+3030
+1100
+1190
+3090
+2100
+2000
+4190
+4100
+4090 
+4000
+3190
+2090
+3100
+2190
+3000
+1090 
+1000
+")%>%
+  duplicated()
+str()
 
-list(
-       "284501"=c(2721,2360,2480,2361,2108,2481,1108,1721,1481,1000,1360,1361,1720,2720,1480,2000),
-     "281502"=c(1480,2721,2361,2108,2720,2480,1108,1481,1360,1720,2481,1361,1721,2000,1000,2360),
-     "284401"=c(1000,1481,2360,2720,1480,1720,2481,1108,1361,2108,2000,2480,1721,2721,2361,1360)
-     )%>%
-  bind_rows()%>%as.data.frame()%>%
-  melt()%>%
-  arrange(variable,value)%>%
-  rename(STDY=variable,PLOT=value)%>%
-  mutate(unite(.,STDY_PLOT))%>%
-  select(STDY_PLOT)%>%
-  expand_grid(1:40)%>%
-  as.data.frame()%>%
-mutate(unite(.,STDY_PLOT_TreeNo))%>%
-  select(STDY_PLOT_TreeNo)->svgs
 
-svgs%>%apply(.,1,function(x){as.character(x)})%>%as.list()->svgsl
-
-dir.create("Q:/My Drive/Studies/FPC/SharedFolderSean/Bloszies (1)/NCSU/CNR/FER/FPC/Lab/Inventories/Trees/ids")
-setwd(  "Q:/My Drive/Studies/FPC/SharedFolderSean/Bloszies (1)/NCSU/CNR/FER/FPC/Lab/Inventories/Trees/ids")
-
-mkqr<-function(x){
-  qr_code(x,ecl="Q")%>%
-    generate_svg(., filename = paste0(x,".svg"), show = F)}
-
-#gold leave it be and get it into other stuff
-lapply(svgsl,mkqr)
-write.csv(svgs,"STDY_PLOT_TreeNoID.csv")
-  
-
+#ALPHA STARTS HERE*@*@*@*@*@*@**@@*@*@*@*@*@*@**@@*@*@*@*@*@*@**@@*@*@*@*@*@*@**@@
 #rwdb gold------
 #just define the connection to the db from R; doesn't create an object in the global env that has actual rwdb data in it
 #FRANCE, angelcruz13
@@ -2201,7 +2257,7 @@ dbpath=normalizePath(paste0(gsub("\\\\Documents","",Sys.getenv("HOME")),("\\Drop
 #on france it looks like 
 #"C:\\Users\\sabloszi\\Dropbox (FPC)\\FPC Team Folder\\Static RWDB\\RWDB static 20221017.mdb" in R as a result of above
 #"C:\Users\sabloszi\Dropbox (FPC)\FPC Team Folder\Static RWDB\RWDB static 20221017.mdb" and this in the explorer path
-#GRADS
+#GRADS, shi-bloszies
 dbpath=normalizePath(paste0(gsub("\\/Documents","",Sys.getenv("HOME")),("\\Dropbox (FPC)\\FPC Team Folder\\Static RWDB\\RWDB static 20221017.mdb")))
 conn<-odbcDriverConnect(paste0("Driver={Microsoft Access Driver (*.mdb, *.accdb)};DBQ=",dbpath))
 #This definitely works on FRANCE pc (laptop) 11/13/23; idk why it wont on the desktop cnr grad one
@@ -2429,6 +2485,7 @@ head(nut18dock)
 merge(nut18ids,nut18dock,by=c("STDY","PLOT"),all.y=F)%>%
   wex()
 
+#ALPHA ENDS HERE*@*@*@*@*@*@**@@*@*@*@*@*@*@**@@*@*@*@*@*@*@**@@*@*@*@*@*@*@**@@
 #is tims 10/27 plot numbers funga same as my 10/26 plot numbers funga?----------
 tim<-read.csv("C:/Users/sabloszi/Dropbox (FPC)/FPC Team Folder/RegionWide Trials/Special Studies/Funga fungal microbiome/sample numbers for funga study Funga FPC Site Summary 6-22-2022_Plotnumbers-3.2.csv",header = T)
 sea<-read.csv("C:/Users/sabloszi/Dropbox (FPC)/FPC Team Folder/RegionWide Trials/Special Studies/Funga fungal microbiome/Funga FPC Site Summary 6-22-2022_Plotnumbers-3.csv",header = T)
