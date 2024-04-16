@@ -30,7 +30,7 @@ vrt_Interlude<-
       select(c(globalid,plot))%>%
       merge(.,vrt_Interlude,by.x="globalid",by.y="parentglobalid",all.y=F)
 
-#whole treatment plot level information (includes herbicide trt)
+#whole treatment plot level information (includes herbicide trt and STDY and PLOT)
 vrt_plots<-read.csv("management-data-VarRate-2022-groundplotsonly.csv"
                         ,header=T) #this is based on a spatial join of the ground plots (plot_loc_center.shp) and the treatment plots (probably remove_NC00212.shp)
 
@@ -165,7 +165,8 @@ vrtl<-
     cast(.,YST+plot+site+rt+rep+tre+PLOT~variable)%>%
  rename_at(all_of(oldnames), ~ newnames)%>%
     mutate(.,YST=YST-22)%>%#since started in 22 can make that YST==0
-mutate(Name_TREE=paste0(Name,",",TREE_NO))
+mutate(Name_TREE=paste0(Name,",",TREE_NO))%>%
+  rename("TREE_No"=TREE_NO)
 #now export it
 write_xlsx(
   x=list(cruising=vrtl),
@@ -207,7 +208,7 @@ rename("Htftwrong22in22"=Htftwrong22in22, "Htlcftwrong22in22"=Htlcftwrong22in22)
 
 #now get the herb and other mgt and plot scale etcdata merged in vrt:
 vrt<-vrt_plots%>% #vrt_plots is based on the gis , was from a shp remove_NC_0021 or somehintg
-  select("Name",'GID','HARV_TY','Herb','ResrcID','Acres','SUBGRID','CLAI','MAJ_ARE','GRID_AR','CLAI_GR','COMPLET','StandID','fert_rx','N_lbac','MAPlbac','MAPNlbac','Urealbac','fragArea','MAPlbs','Urealbs','MAPLAB')%>%
+  select("Name",'GID','HARV_TY','Herb','ResrcID','Acres','SUBGRID','CLAI','MAJ_ARE','GRID_AR','CLAI_GR','COMPLET','StandID','fert_rx','N_lbac','MAPlbac','MAPNlbac','Urealbac','fragArea','MAPlbs','Urealbs','MAPLAB','STDY','PLOT')%>%
   select(-Herb)%>% #note for the 26 grond plots the three columns Herb, Herbicide, and MAJ_AREA are all the same so can just keep one. MAJ_AREA is I think the most helpful one in the GIS at stand scale but that doesnt really matter for these 26 plots
   merge(.,vrt,by.x="Name",by.y="PLOT")
 vrt<-
@@ -231,7 +232,7 @@ vrt<-  vrt%>%
 
 
 
-#2.4. Add in lai data=====
+#2.4. Add in lai data (you can run through 1.1 to here at least)=====
 #Needed to fully show lai data-
 #options(max.print=1000000)
 
@@ -310,6 +311,7 @@ vrt_lai_final<-vrt_lai_final%>%
 
 #Sean moved this line to the plot scale data set since it's not lai by tree: vrt<-merge(vrt,vrt_lai_final,all=T,by=c("Name"))
 
+#2.4.1. Make minimal data set to send QCto RWDB etc----
 #3.1. merging plot numbers to main.RW29_NCVarRate_MasterPlotPlan ----
 library(rgdal)# for st_read and ogrListLayers
 library(readxl)
@@ -529,7 +531,7 @@ vrt_grdplt<-
   mutate(.,ba23=basalarea23_s/((Shape_Area/10000)*2.471))%>% #get ba
   mutate(.,ba=basalarea_s/((Shape_Area/10000)*2.471))%>% #get ba
   select(c(Name,site,MAJ_ARE,N_lbac,fert_rx,v22_m,v23_m,v_m,Htft22_m,Htft23_m,Htft_m,Dbhin22_m,Dbhin23_m,Dbhin_m,basalarea22_m,basalarea23_m,basalarea_m,CrownLength22_m,CrownLength23_m,CrownLength_m,
-           va22,va23,va,ba22,ba23,ba,Htftprn,Htlcftprn,Dbhinprn,percov) )#keep only per plot data
+           va22,va23,va,ba22,ba23,ba,Htftprn,Htlcftprn,Dbhinprn) )#keep only per plot data
 
 
 #add in lai data
@@ -584,7 +586,7 @@ if((3>4)==T){#d, just putting this here for now for qc of data, delete eventally
 
 #main raw data qc for difference 22 to 23 dependent variables----------------------------------------------------------------------------------------------------
 
-tree_vars(tvariable=Htft) #y axis
+tree_vars(tvariable=Dbhin) #y axis
 
 tree_vars<-function(tvariable){
   vrt%>%
@@ -842,7 +844,7 @@ a
 vrt_grdplt[vrt_grdplt$site!=139&vrt_grdplt$N_lbac!=100,]%>%
   mutate(.,N_lbac=as.factor(N_lbac))%>%
   lmer(basalarea_m~N_lbac*MAJ_ARE+(1|site/MAJ_ARE), data=.,na.action = na.exclude)%>%
-  anova()
+  #anova()
   lsmeans(.,pairwise~N_lbac,adjust="none")%>%#pairwise~samp*year,
   cld(.,
       #by="year",
@@ -1515,3 +1517,17 @@ as.data.frame(tgs)%>%
   unique()%>%dim()
 #yea there's like 25ish trees that have multiple locations
 #there are only like 5 or 6 plots where i have fewer trees on the gps so that's good
+#delete read in 2024 data-----
+vrt24<-read.csv( "Q:/Shared drives/FER - FPC Team/RegionWide Trials/RW29 Variable Rate x Herb/Workspaces/Bloszies_Sean/tree.csv"  )%>%
+#  rename("PLOT"=Plots.PLOT)%>% #rename 
+ # select(!starts_with("Plots."))%>%
+  #rename_with(function(x) {gsub("TREE.","",x)},TREE.OID:TREE.Editor)%>%
+  select(-c(globalid,parentglob,Editor,Creator,EditDate,CreationDa,OID,HT_L,HTLC_L,DBHRCD_L,SIN,nxttree,HTLC,RE_L,TREE_NoBac,countnum,accuracy))%>%
+  mutate(.,STDY=as.integer(substr(PLOTTREE,1,6)))%>%
+  mutate(.,PLOT=as.integer(substr(PLOTTREE,7,10)))%>%
+  mutate(.,TREE_No=as.integer(substr(PLOTTREE,11,n())))%>%
+  subset(STDY<299999&STDY>290000)%>%
+  arrange(.,STDY,PLOT,TREE_No)%>%
+  select(-c(PLOTTREE))%>%
+  rename("HTLC"=HTLC1)
+#fnas pick up with vrt24 and vrtl putting them together 4/15/2024 delete this fnas after there is a cruising data xlsx for 22-24
