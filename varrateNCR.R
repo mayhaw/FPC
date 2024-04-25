@@ -19,7 +19,6 @@ vrtlf<-
   select(c(STDY,PLOT,YST,TREE_No,DBH,HTLC,HT,Comments,DAM,MORT,Shape_Area,fert_FINAL,Herb,fert_rx))%>%#DBH,HTLC,DAM,MORT,Comments))%>%
   mutate(.,CrLe=HT-HTLC)%>%
   mutate(ba=(pi*((DBH/2)^2))/144)%>% # one tree basal areal also note its converteing from in to feet^2 since all futher use needs to be in ft2
-  mutate(ba=ba/((Shape_Area/10000)*2.471))%>% #get ba in sqft per plot acres (same as vol also convert from sq m Shape_Area to ac)
   mutate(.,vol=ifelse(STDY==291207, #this gives you volume per tree
                       (0.21949+(0.00238 * DBH * DBH * HT)), #true, unthined, Units will be vol in ft3/tree, dbh in inches, ht in ft.  
                       (0.25663+(0.00239 * DBH * DBH * HT))))%>% #false, thinned 
@@ -29,30 +28,41 @@ vrtlf<-
   mutate(.,DBHg=DBH-lag(DBH))%>%
   mutate(.,HTg=HT-lag(HT))%>%
   mutate(.,CrLeg=CrLe-lag(CrLe))%>%
+  mutate(.,bag=ba-lag(ba))%>%
+  mutate(.,volag=ba-lag(vola))%>%
   mutate(.,volg=vol-lag(vol))
                       
 vrtlfg<-
   vrtlf%>%
-subset(.,YST==1)%>%
-  group_by(STDY,PLOT,Herb,fert_FINAL,fert_rx)%>% #only really need to group_by STDY and PLOT but this is a lazy way to keep the trts
+  subset(STDY!=291207)%>%
+subset(.,YST!=0)%>%
+  mutate(bag=bag/((Shape_Area/10000)*2.471))%>% #get ba in sqft per plot acres (same as vol also convert from sq m Shape_Area to ac)
+  group_by(STDY,PLOT,Herb,fert_FINAL,fert_rx,YST)%>% #only really need to group_by STDY and PLOT but this is a lazy way to keep the trts
   summarise(
+    ntrs=n(),
   #1st mean measurements
     CrLeg=mean(CrLeg,na.rm=T),
     DBHg=mean(DBHg,na.rm=T),
     HTg=mean(HTg,na.rm=T),
-    bam=mean(ba,na.rm=T),
+    bam=mean(bag,na.rm=T),
     volgm=mean(volg,na.rm=T),
+    volagm=mean(volag,na.rm=T),
   #2nd sum measurements
-    bas=sum(ba,na.rm=T),
+    bas=sum(bag,na.rm=T),
     volgs=sum(volg,na.rm=T))%>%#
   mutate(.,fert_FINAL=as.factor(fert_FINAL))%>%
   mutate(.,STDY=as.factor(STDY))%>%
   mutate(.,nh=interaction(fert_FINAL,Herb))
+#relevel the ferts so they appear in order on figures
+vrtlfg<-
+  vrtlfg%>%
+    mutate(.,fert_FINAL=factor(fert_FINAL,levels=c("0","100","200","250","300"),labels=c("0","100","200","250","300")))%>%
+      arrange(fert_FINAL,STDY,PLOT)
 
 #get means per trt combo for graphs
 herbmns<-
   vrtlfg%>%
-  group_by(fert_FINAL,Herb)%>%
+  group_by(fert_FINAL,Herb,YST)%>%
   summarise(CrLeg=mean(CrLeg,na.rm=T),
             DBHg=mean(DBHg,na.rm=T),
             volgm=mean(volgm,na.rm=T),
@@ -61,36 +71,47 @@ herbmns<-
             bas=mean(bas,na.rm=T),
             HTg=mean(HTg,na.rm=T))
 
-#graphs 
-vrtlfg<-
-  vrtlfg%>%
-    mutate(.,fert_FINAL=factor(fert_FINAL,levels=c("0","100","200","250","300"),labels=c("0","100","200","250","300")))%>%
-      arrange(fert_FINAL,STDY,PLOT)
-    head()
 
-  ggplot(vrtlfg,aes(as.factor(fert_FINAL), HTg, group=nh)) +
+#graphs 
+  ggplot(vrtlfg,aes(as.factor(fert_FINAL), volgm, group=nh)) +
   geom_line(data = herbmns, aes(group=Herb,linetype=Herb), size=1,
             position = position_dodge(width=0.15)) +
   geom_point(aes(color=Herb,group=nh,shape=STDY),
-             position = position_dodge(width=0.15),size=4)
-  #geom_point(data = summh, aes(group=MAJ_ARE), colour="blue",size=3, 
-  #          position = position_dodge(width=0.15)) +
-  ylab(expression(paste("Basal area growth (",ft^2, " " , tree^-1, yr^-1,")")))+  
-  xlab(expression(paste("Fertilizer (lbs. N ",ac^-1,")")))+  
-  
-  theme_bw() + 
-  theme(axis.title.x = element_text(size = 20, hjust = 0.54, vjust = 0),
+             position = position_dodge(width=0.15),size=4)+
+    facet_grid(YST~.)+
+  ylab(expression(paste("Volume growth (",ft^3, " " , ac^-1, yr^-1,")")))+  
+ xlab(expression(paste("Fertilizer (lbs. N ",ac^-1,")")))+  
+    theme_bw() + 
+   theme(axis.title.x = element_text(size = 20, hjust = 0.54, vjust = 0),
         axis.title.y = element_text(size = 20, angle = 90,  vjust = 0.25),
         legend.text=element_text(size=16))+
-  labs(shape="Plot mn.: Stand",color="Plot mn.: Weed ctrl.",linetype="Overall N x H means")+
-  # scale_color_viridis(discrete = TRUE,option="D",guide="none") +
+  labs(shape="Plot mn.: RW Study",color="Plot mn.: Weed ctrl.",linetype="Overall N x H means")+
   scale_colour_manual(values=cbPalette)+
   guides(colour = guide_legend(override.aes = list(shape = 9),order=1),
-         shape = guide_legend(order = 2),
-         linetype = guide_legend(order = 3))+
+        shape = guide_legend(order = 2),
+       linetype = guide_legend(order = 3))+
   theme(axis.text.x = element_text(size = 14))
-
   
+#pretty much herb > no herb for:
+#year1: DBHg, volgm, volgs
+#year2: DBHg, volgm, volgs 
+
+vrtlfg%>%
+  mutate(.,fert_FINAL=as.factor(fert_FINAL))%>%
+    lmer(DBHg~Herb*YST+(1|STDY/YST), data=.,na.action = na.exclude)%>%
+  anova() 
+    lsmeans(.,pairwise~YST,adjust="none")%>%#pairwise~samp*year,
+   cld(.,
+        #by="year",
+        alpha=0.05,
+        Letters=letters,      ### Use lower-case letters for .group
+        adjust="none",       ### Tukey-adjusted or bonferroni comparisons show all a's (i.e. no means difference detected) #"G:\My Drive\Library\Graphpad_multiple_comparisons.pdf" shows how to do these without adjustments/what to call them etc
+        rev=T)
+  
+  #  Pr(>F)
+  #  N_lbac         0.2799
+  #  MAJ_ARE        0.9233
+  # N_lbac:MAJ_ARE 0.6984
   
   
   
