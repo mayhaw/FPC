@@ -6,29 +6,25 @@
 setwd("Q:/Shared drives/FER - FPC Team/RegionWide Trials/RW29 Variable Rate x Herb/NC/Tabular_Data")
 #then get mgt and plot info read in
 mgt<-read.csv("management-data-VarRate-2022-groundplotsonly.csv",header=T)%>%
-  select(STDY,PLOT,N_lbac,Herb)
+  select(STDY,PLOT,fert_FINAL,Herb,fert_rx,Shape_Area)
 
 
 #then get the meat of the data read in_-------  
 vrtlf<-
   read.csv("cruising-data-VarRate.csv",header = T)%>%
+  merge(mgt,.,by=c("STDY","PLOT"))%>%
   mutate(.,HT=as.numeric(HT))%>%
   mutate(.,HTLC=as.numeric(HTLC))%>%
   mutate(.,DBH=as.numeric(DBH))%>%
-  select(c(STDY,PLOT,YST,TREE_No,DBH,HTLC,HT,Comments,DAM,MORT))%>%#DBH,HTLC,DAM,MORT,Comments))%>%
+  select(c(STDY,PLOT,YST,TREE_No,DBH,HTLC,HT,Comments,DAM,MORT,Shape_Area,fert_FINAL,Herb,fert_rx))%>%#DBH,HTLC,DAM,MORT,Comments))%>%
   mutate(.,CrLe=HT-HTLC)%>%
+  mutate(ba=(pi*((DBH/2)^2))/144)%>% # one tree basal areal also note its converteing from in to feet^2 since all futher use needs to be in ft2
+  mutate(ba=ba/((Shape_Area/10000)*2.471))%>% #get ba in sqft per plot acres (same as vol also convert from sq m Shape_Area to ac)
   mutate(.,vol=ifelse(STDY==291207, #this gives you volume per tree
                       (0.21949+(0.00238 * DBH * DBH * HT)), #true, unthined, Units will be vol in ft3/tree, dbh in inches, ht in ft.  
                       (0.25663+(0.00239 * DBH * DBH * HT))))%>% #false, thinned 
-
- mutate(.,va22=v22_s/((Shape_Area/10000)*2.471))%>% #get volume per acre but convert sq meters to ha and then ha size in to ac bc 10000 sq m in a ha and 2.471 ac in a ha. the Shape_area is just the area of the trees plus a 2m buffer around that
-  mutate(.,va23=v23_s/((Shape_Area/10000)*2.471))%>% #get volume per acre but convert sq meters to ha and then ha size in to ac bc 10000 sq m in a ha and 2.471 ac in a ha
-  mutate(.,va=v_s/((Shape_Area/10000)*2.471))%>% #get volume per acre but convert sq meters to ha and then ha size in to ac bc 10000 sq m in a ha and 2.471 ac in a ha
-  mutate(.,ba22=basalarea22_s/((Shape_Area/10000)*2.471))%>% #get ba
-  mutate(.,ba23=basalarea23_s/((Shape_Area/10000)*2.471))%>% #get ba
-  mutate(.,ba=basalarea_s/((Shape_Area/10000)*2.471))%>% #get ba
-  
-  arrange(STDY,PLOT,TREE_No,YST)%>%
+  mutate(.,vola=vol/((Shape_Area/10000)*2.471))%>% #get volume per acre but convert sq meters to ha and then ha size in to ac bc 10000 sq m in a ha and 2.471 ac in a ha. the Shape_area is just the area of the trees plus a 2m buffer around that
+  arrange(STDY,PLOT,TREE_No,YST,fert_FINAL)%>%
   group_by(STDY,PLOT,TREE_No)%>% 
   mutate(.,DBHg=DBH-lag(DBH))%>%
   mutate(.,HTg=HT-lag(HT))%>%
@@ -36,27 +32,43 @@ vrtlf<-
   mutate(.,volg=vol-lag(vol))
                       
 vrtlfg<-
-vrtlf%>%
-  subset(.,YST==1)%>%
-  group_by(STDY,PLOT)%>%
-  summarise(CrLeg=mean(CrLeg,na.rm=T),
-            DBHg=mean(DBHg,na.rm=T),
-            volg=mean(volg,na.rm=T),
-            HTg=mean(HTg,na.rm=T))%>%
-merge(mgt,.,by=c("STDY","PLOT"))%>%
-    mutate(.,N_lbac=as.factor(N_lbac))%>%
+  vrtlf%>%
+subset(.,YST==1)%>%
+  group_by(STDY,PLOT,Herb,fert_FINAL,fert_rx)%>% #only really need to group_by STDY and PLOT but this is a lazy way to keep the trts
+  summarise(
+  #1st mean measurements
+    CrLeg=mean(CrLeg,na.rm=T),
+    DBHg=mean(DBHg,na.rm=T),
+    HTg=mean(HTg,na.rm=T),
+    bam=mean(ba,na.rm=T),
+    volgm=mean(volg,na.rm=T),
+  #2nd sum measurements
+    bas=sum(ba,na.rm=T),
+    volgs=sum(volg,na.rm=T))%>%#
+  mutate(.,fert_FINAL=as.factor(fert_FINAL))%>%
   mutate(.,STDY=as.factor(STDY))%>%
-  mutate(.,nh=interaction(N_lbac,Herb))
+  mutate(.,nh=interaction(fert_FINAL,Herb))
 
+#get means per trt combo for graphs
 herbmns<-
   vrtlfg%>%
-  group_by(N_lbac,Herb)%>%
+  group_by(fert_FINAL,Herb)%>%
   summarise(CrLeg=mean(CrLeg,na.rm=T),
             DBHg=mean(DBHg,na.rm=T),
-            volg=mean(volg,na.rm=T),
+            volgm=mean(volgm,na.rm=T),
+            bam=mean(bam,na.rm=T),
+            volgs=mean(volgs,na.rm=T),
+            bas=mean(bas,na.rm=T),
             HTg=mean(HTg,na.rm=T))
- 
-  ggplot(vrtlfg,aes(as.factor(N_lbac), DBHg, group=nh)) +
+
+#graphs 
+vrtlfg<-
+  vrtlfg%>%
+    mutate(.,fert_FINAL=factor(fert_FINAL,levels=c("0","100","200","250","300"),labels=c("0","100","200","250","300")))%>%
+      arrange(fert_FINAL,STDY,PLOT)
+    head()
+
+  ggplot(vrtlfg,aes(as.factor(fert_FINAL), HTg, group=nh)) +
   geom_line(data = herbmns, aes(group=Herb,linetype=Herb), size=1,
             position = position_dodge(width=0.15)) +
   geom_point(aes(color=Herb,group=nh,shape=STDY),
