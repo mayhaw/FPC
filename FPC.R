@@ -1,3 +1,5 @@
+#Sourcestop-----
+Stop_you_arent_supposed_to_Source_FPC_dot_R
 #source("Q:/My Drive/Library/datlibmgr.R")
 #rw185201:read in----
 #setwd("C:/Users/seanb/")
@@ -451,6 +453,7 @@ persp3d(zn_soil,p_soil_ppm,mnlnr, theta = 30, phi = 20,
 windows(100, 100, pointsize = 12) #opens a separate window with the size you want
 par(mar=c(4,6,4,3))
 graphics::contour(zmodel, p_soil_ppm ~ zn_soil, image = TRUE,labcex=2.8,cex.lab=2.8,cex.axis=2.8, xlabs=c("Soil P (ppm)","Soil Zn (mg kg^-1)"))   
+##ALPHA STARTS HERE*@*@*@*@*@*@**@@*@*@*@*@*@*@**@@*@*@*@*@*@*@**@@*@*@*@*@*@*@**@@-----
 #all possible combos of Funga docket soils-----
 
 #Here is a list of samples that still need sending to Funga as of 10/25/2022 ish:
@@ -647,6 +650,23 @@ cre[cre%in%db]
 
 #needs to go to : 
 #C:\Users\sabloszi\Dropbox (FPC)\FPC Team Folder\RegionWide Trials\Special Studies\Funga fungal microbiome\Funga FPC Site Summary 6-22-2022_Plotnumbers.csv
+
+#cybertruck------
+"_______
+|\      \
+ \\  ____\_
+0)\\/\     \
+   \\ \_____\
+    \\|___:D_|
+     \\\      \
+    0)\\o=====o
+       +++++++
+"
+#dates-----
+#CAN DELETE THIS SECTION IF NEED BE
+set.seed(2)
+as.Date(sample.int(365,4), origin=as.Date("1970-01-01"))%>%sort()
+#Sean on annual leave
 
 #delete trash: samples on bench as of10/14/222 ----
 read.table(text="
@@ -1563,6 +1583,22 @@ wex() #i put this on the following media csv I got from treegrodat: C:\Users\sab
   
 994004
 #F
+#github-----
+#not much happens in the R script, just need to set the wd then go to the terminal
+setwd("Q:/My Drive/Studies/FPC/Scripts")
+#not sure what this load thing was for, i think its for returning to a previous workspace image or whatever
+#load(".RData2")
+#if you wan to look at the wd:
+wael() #note wael doesn't necessarily send the window to the top b/c that's not what shell.exec does.
+#the simplest terminal procedures are : (full procedures are on Protocols_NCSU_FPC.gdoc)
+
+#1.1 (optional; might not need this: close and reopen the terminal if it's not showing the right WD)
+#1. git add FPC.R   (note it works even if nothing pops  up)
+#2. git commit -m"added all the semi-finished survey123 json stuff"
+#3. git push origin main
+
+#then that's it, it pops up in the github. 
+
 #google sheets read inn=-----
 #fuck<-gsheet2tbl('https://docs.google.com/spreadsheets/d/1foGV8kUzgDiTsx0coouDvG0TWm7eks7DYMZt0Gx-e_4/edit#gid=1283512166')
 link_to_Gsheets <- "https://docs.google.com/spreadsheets/d/1foGV8kUzgDiTsx0coouDvG0TWm7eks7DYMZt0Gx-e_4/edit#gid=1283512166"
@@ -2088,6 +2124,31 @@ wex(stdy)
 #M
 #N
 #O
+#mailmerge------
+#make the link
+link_to_Gsheets <- "https://docs.google.com/spreadsheets/d/1b_CKscRFoG-Daixt455ClpWIDcjJ4zL1vdUjN9v0Z1s"
+
+#read it in
+#if you dont do the coltypes it fucks up and gets lists from some columns which is hard to deal with
+mailmrg<-read_sheet(link_to_Gsheets, sheet="bigsampletable",col_types = 
+                      "iii---c-----D---")
+
+setwd(
+  
+)
+mailmrg%>%
+  subset(STDY%in%c(281303,282401,284201,284202))%>%
+  subset(`SAMPLE_#`>=23387&`SAMPLE_#`<=23514)%>%
+write_xlsx(
+  x=.,
+  path = "cruising-data-VarRate.xlsx",#this is the final merged 2022/2023/20___ tree data
+  col_names = TRUE,
+  format_headers = TRUE,
+  use_zip64 = FALSE
+)
+
+
+
 #pdfs combine or split-----
 
 setwd(
@@ -2128,7 +2189,7 @@ pdf_split("PDFcopyofreceiptsinfolder.pdf", output = NULL, password = "")
 
 #fnas crtrlf afjatynfnwss pick up here 11/20 : see which pdfs of research summaries elijah hasnt done by going to https://drive.google.com/drive/folders/1hIYQAQkAil0VSnBHG5aA6WahP4kp3qoE?usp=drive_link aka the fer-fpc team > website folder
 
-#plot list of all plots-----
+#plot list of all plots rw28-----
 list("281502"=c(1502,1503),
      "284501"=c(1600,1999))%>%
     bind_rows()%>%as.data.frame()%>%
@@ -2145,16 +2206,31 @@ list(
   arrange(variable,value)%>%
   rename(STDY=variable,PLOT=value)%>%
 mutate(.,PLOTgood=gsub("481","722",PLOT))%>%
-mutate(.,PLOTgood=gsub("721","961",PLOT))%>%
-mutate(.,PLOTgood=gsub("108","960",PLOT))%>%
+mutate(.,PLOTgood=gsub("721","961",PLOTgood))%>%
+mutate(.,PLOTgood=gsub("108","960",PLOTgood))%>%
   #  mutate(unite(.,STDY_PLOT))%>%
-#  select(STDY_PLOT)%>%
-#  expand_grid(1:40)%>%
+#  select(STDY_PLOT)%>% #for labels
+select(STDY,PLOT,PLOTgood)%>%  
+arrange(STDY,PLOTgood)%>%
+#expand_grid(1:40)%>%
 as.data.frame()%>%
-  subset(.,STDY=="284501")%>%
+#rename(TREE_No=`1:40`)%>%
+  subset(.,STDY=="281502")%>%
 wex()
+print()
 
-
+#table of 28 vs 18 plots
+read.table(text = "
+412 360
+206 361
+418 480
+624 481
+424 720
+212 721
+624 722
+218 960
+212 961
+")
 
 svgs%>%apply(.,1,function(x){as.character(x)})%>%as.list()->svgsl
 
@@ -2170,6 +2246,32 @@ lapply(svgsl,mkqr)
 write.csv(svgs,"STDY_PLOT_TreeNoID.csv")
   
 
+#pcard-----
+#I want to get the current billcycle's pdf receipt names:
+fnams<-  data.frame(receiptpath=(sort(decreasing=T,list.files(path="Q:/My Drive/Studies/FPC/SharedFolderSean/Bloszies (1)/NCSU/Official/Pcard/Receipts/Deletereceipts/new1"))%>%
+    subset(.,subset=!grepl("desktop.ini",.))))%>%
+      mutate(.,ord=rev(1:n()))
+
+#Now Get the table of cps and comments etc and their order in the receipt names (mannually make the ord column)...
+read.csv("Q:/My Drive/Studies/FPC/SharedFolderSean/Bloszies (1)/NCSU/Official/Pcard/Receipts/Deletereceipts/copyFrom.csv",
+         header=F,col.names=c("Comment","amount","billcycle","cps","ord",NA,NA,NA,NA,NA,NA),na.strings = c(""," ",NA))%>%
+           select(c(Comment,amount,billcycle,cps,ord))%>%
+subset(.,!is.na(cps))%>%         
+  mutate(.,Comment=gsub('[[:punct:]]+','',Comment))%>%
+  mutate(.,Comment=gsub('[ ]+','_',Comment))%>%
+  merge(.,fnams,all.x=T)%>%
+  arrange(cps)%>%
+  mutate(.,transdate=str_extract(receiptpath, "[^_]+"))%>%
+  mutate(., FAS=substr(receiptpath,stringi::stri_locate_last_fixed(receiptpath, "_")[,1]+1,nchar(receiptpath)))%>%
+  select(c(transdate,amount,Comment,cps,FAS,billcycle,receiptpath))%>%
+  mutate(.,FAS=gsub("\\.pdf","",FAS))%>%
+    wex()
+  
+strang<-"hello_world.123_456"
+
+
+
+      
 #qr codes-----
 
 read.table(text="
@@ -2247,9 +2349,6 @@ read.table(text="
 ")%>%
   duplicated()
 str()
-
-
-#ALPHA STARTS HERE*@*@*@*@*@*@**@@*@*@*@*@*@*@**@@*@*@*@*@*@*@**@@*@*@*@*@*@*@**@@
 #rwdb gold------
 #just define the connection to the db from R; doesn't create an object in the global env that has actual rwdb data in it
 #FRANCE, angelcruz13
@@ -2258,11 +2357,12 @@ dbpath=normalizePath(paste0(gsub("\\\\Documents","",Sys.getenv("HOME")),("\\Drop
 #"C:\\Users\\sabloszi\\Dropbox (FPC)\\FPC Team Folder\\Static RWDB\\RWDB static 20221017.mdb" in R as a result of above
 #"C:\Users\sabloszi\Dropbox (FPC)\FPC Team Folder\Static RWDB\RWDB static 20221017.mdb" and this in the explorer path
 #GRADS, shi-bloszies
-dbpath=normalizePath(paste0(gsub("\\/Documents","",Sys.getenv("HOME")),("\\Dropbox (FPC)\\FPC Team Folder\\Static RWDB\\RWDB static 20221017.mdb")))
+dbpath=normalizePath(paste0(gsub("\\/Documents","",Sys.getenv("HOME")),("\\FPC Dropbox\\FPC Team Folder\\Static RWDB\\RWDB static 20221017.mdb")))
 conn<-odbcDriverConnect(paste0("Driver={Microsoft Access Driver (*.mdb, *.accdb)};DBQ=",dbpath))
-#This definitely works on FRANCE pc (laptop) 11/13/23; idk why it wont on the desktop cnr grad one
+#This definitely works on FRANCE pc (laptop) 11/13/23; idk why it wont on the desktop cnr grad one; worked on shi-bloszies 3/5/24
 
 #not sure what this one is for
+#conn<-odbcDriverConnect("Driver={Microsoft Access Driver (*.mdb, *.accdb)};DBQ=C:/Users/seanb/Dropbox (FPC)/FPC Team Folder/Static RWDB/RWDB static 20221017.mdb")
 #conn<-odbcDriverConnect(  "Driver={Microsoft Access Driver (*.mdb, *.accdb)};DBQ=C:/Users/seanb/Dropbox (FPC)/FPC Team Folder/Static RWDB/RWDB static 20221017.mdb")#20221017
 #20221017.mdb, seanb
 #conn<-odbcDriverConnect("Driver={Microsoft Access Driver (*.mdb, *.accdb)};DBQ=C:/Users/seanb/Dropbox (FPC)/FPC Team Folder/Static RWDB/RWDB static 20221017.mdb")
@@ -2288,7 +2388,7 @@ sqlFetch(conn,"dbo_ACTIVITY_WORKPLAN")%>%wex()
 depths<-sqlFetch(conn,"dbo_DEPTH_CODES")
 sqlFetch(conn,"dbo_COMPANY_OPERATIONS")%>%
   subset(OPERATION_ID!=140)%>%
-  subset(.,grepl("cock",OPERATION_NAME,ignore.case=T))
+  subset(.,grepl("15",OPERATION_ID,ignore.case=T))
 wex(sqlFetch(conn,"dbo_DOMINANT_HEIGHT_1"))
 wex(sqlFetch(conn,"dbo_APPLIED_TREATMENTS"))
 (sqlFetch(conn,"dbo_SAMPLING_LOCATION"))
@@ -3102,12 +3202,6 @@ write.csv(file="C:/Temp/wholestandtrees2.csv",latlong)
 install.packages("FPCALSpackage")
 library(FPCALSpackage)
 fpc.lidar.app()  
-#dates-----
-#CAN DELETE THIS SECTION IF NEED BE
-set.seed(2)
-as.Date(sample.int(365,4), origin=as.Date("1970-01-01"))%>%sort()
-#Sean on annual leave
-
 #file search indexing------
 
 #First we have to specify where we want to look and what the nnicknames for those places are
@@ -3140,19 +3234,28 @@ mindex<-mapply(function(x,y){list(list(basep=x,restnmd=y))}, #y is suppoed to be
        nmchfls, # the named character vector of root paths
        iu       ) #the big thing of the all files paths within those root path directories
 
+#write it to q drive
+#cat(toJSON(mindex),file="Q:/My Drive/Studies/FPC/SharedFolderSean/Bloszies (1)/NCSU/CNR/FER/FPC/filekache20240322.txt")
+#read it back
+mindex2<-fromJSON(file="Q:/My Drive/Studies/FPC/SharedFolderSean/Bloszies (1)/NCSU/CNR/FER/FPC/filekache20240322.txt"
+)
+all.equal(mindex,mindex2)
+
+
 #actual search-----
+
 #gold
 #Define the search
-sirch="right"
-sirch2="of"
-sirch3="entry"
+sirch="contacts_fpc"
+sirch2="contacts_fpc"
+sirch3="contacts_fpc"
 #do the search
 system.time(
 u7s<-mindex%>% #.1 seconds
   lapply(., function(x) #https://stackoverflow.com/questions/14052612/extract-value-of-the-same-field-from-multiple-list-object-in-r
     x[["restnmd"]]
   )%>%
-    lapply(., function(ch) subset(ch,grepl(sirch,ch,ignore.case=T)&
+    lapply(., function(ch) subset(ch,grepl(sirch,ch,ignore.case=T)|
 #                                    grepl(sirch2,ch,ignore.case=T)&
                                   grepl(sirch3,ch,ignore.case=T)))
 )
@@ -3213,6 +3316,7 @@ str(dropa)
 
 
 
+      
 #this also works great, but idk how to name it up a level programatically 
 #... based on whatever i want to call the thing that is made (like 
 #-... say i want to name it like
@@ -3348,20 +3452,6 @@ head()
 k <- str_extract_all(j, "\\([^()]+\\)")[[1]]
 # Remove parenthesis
 k <- substring(k, 2, nchar(k)-1)
-
-#github-----
-#not much happens in the R script, just need to set the wd then go to the terminal
-setwd("Q:/My Drive/Studies/FPC/Scripts")
-#not sure what this load thing was for, i think its for returning to a previous workspace image or whatever
-#load(".RData2")
-#if you wan to look at the wd:
-wael()
-#the simplest terminal procedures are : (full procedures are on Protocols_NCSU_FPC.gdoc)
-#1. git add FPC.R
-#2. git commit -m"added all the semi-finished survey123 json stuff"
-#3. git push origin main
-
-#then that's it, it pops up in the github. 
 
 #GET treedata  from json survey123-----
 LS1<-fromJSON(file="C:/Users/sabloszi/Desktop/delete/FUCK.json"
